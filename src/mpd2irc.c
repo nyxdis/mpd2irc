@@ -52,7 +52,8 @@ struct song_info {
 int main(int argc, char *argv[])
 {
 	int irc_sockfd, mpd_sockfd, sr;
-	unsigned int major, minor, wfd;
+	unsigned int major, minor;
+	unsigned short write_irc = 0, write_mpd = 0;
 	char wbuf[256], rbuf[1024], *saveptr, *line;
 	struct timeval waitd;
 	fd_set read_flags, write_flags;
@@ -87,7 +88,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	wfd = irc_sockfd;
+	write_irc = 1;
 	sprintf(wbuf,"NICK %s\n",prefs.irc_nick);
 	write(irc_sockfd,wbuf,strlen(wbuf));
 	sprintf(wbuf,"USER %s 0 * :%s\n",prefs.irc_username,prefs.irc_realname);
@@ -101,7 +102,8 @@ int main(int argc, char *argv[])
 		FD_ZERO(&write_flags);
 		FD_SET(mpd_sockfd,&read_flags);
 		FD_SET(irc_sockfd,&read_flags);
-		if(wfd > 0) FD_SET(wfd,&write_flags);
+		if(write_irc > 0) FD_SET(irc_sockfd,&write_flags);
+		if(write_mpd > 0) FD_SET(mpd_sockfd,&write_flags);
 		if(irc_sockfd > mpd_sockfd)
 			sr = irc_sockfd;
 		else
@@ -109,6 +111,18 @@ int main(int argc, char *argv[])
 
 		if(select(sr+1,&read_flags,&write_flags,NULL,&waitd) < 0)
 			continue;
+
+		if(FD_ISSET(irc_sockfd,&write_flags))
+		{
+			FD_CLR(irc_sockfd,&write_flags);
+			write_irc = 0;
+		}
+
+		if(FD_ISSET(mpd_sockfd,&write_flags))
+		{
+			FD_CLR(mpd_sockfd,&write_flags);
+			write_mpd = 0;
+		}
 
 		if(FD_ISSET(mpd_sockfd,&read_flags))
 		{
@@ -118,7 +132,7 @@ int main(int argc, char *argv[])
 			if(sr > 0)
 			{
 				printf("read %d bytes from mpd: %s",sr,rbuf);
-				wfd = mpd_sockfd;
+				write_mpd = 1;
 				if(strncmp(rbuf,"OK MPD",6) == 0)
 				{
 					sscanf(rbuf,"%*s %*s %d.%d.",&major,&minor);
@@ -129,7 +143,7 @@ int main(int argc, char *argv[])
 					}
 				}
 				else if(strncmp(rbuf,"changed: player",15) == 0)
-					write(wfd,"currentsong\n",12);
+					write(mpd_sockfd,"currentsong\n",12);
 				else if(strncmp(rbuf,"file: ",6) == 0)
 				{
 					line = strtok_r(rbuf,"\n",&saveptr);			
@@ -145,11 +159,9 @@ int main(int argc, char *argv[])
 					printf("PRIVMSG %s :New song: %s - %s (From %s)\n",
 						prefs.irc_channel,current_song.artist,current_song.title,
 						current_song.album);
-				//	write(wfd,wbuf,strlen(wbuf));
+				//	write(mpd_sockfd,wbuf,strlen(wbuf));
 				}
-				write(wfd,"idle\n",5);
-				/* skip reading irc to avoid overwriting wfd */
-				continue;
+				write(mpd_sockfd,"idle\n",5);
 			}
 		}
 
@@ -167,12 +179,6 @@ int main(int argc, char *argv[])
 					exit(EXIT_FAILURE);
 				}
 			}
-		}
-
-		if(FD_ISSET(wfd,&write_flags))
-		{
-			FD_CLR(wfd,&write_flags);
-			wfd = 0;
 		}
 	}
 
