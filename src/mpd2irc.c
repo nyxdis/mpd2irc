@@ -50,6 +50,13 @@ struct song_info {
 	char *file;
 } current_song;
 
+struct mpd_status {
+	int repeat;
+	int random;
+	int xfade;
+	enum { PLAY, STOP, PAUSE } state;
+} mpd_status;
+
 int main(int argc, char *argv[])
 {
 	int irc_sockfd, mpd_sockfd, sr;
