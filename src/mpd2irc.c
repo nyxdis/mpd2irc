@@ -51,9 +51,9 @@ struct song_info {
 } current_song;
 
 struct mpd_status {
-	int repeat;
-	int random;
-	int xfade;
+	short repeat;
+	short random;
+	short xfade;
 	enum { PLAY, STOP, PAUSE } state;
 } mpd_status;
 
