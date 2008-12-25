@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
 	unsigned int major, minor;
 	unsigned short write_irc = 0, write_mpd = 0;
 	char wbuf[256], rbuf[1024], *saveptr, *line;
+	char tmp[256];
 	struct timeval waitd;
 	fd_set read_flags, write_flags;
 
@@ -149,6 +150,7 @@ int main(int argc, char *argv[])
 						fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
 						exit(EXIT_FAILURE);
 					}
+					write(mpd_sockfd,"currentsong\n",12);
 					write(mpd_sockfd,"idle player\n",12);
 					write_mpd = 1;
 				}
@@ -200,11 +202,33 @@ int main(int argc, char *argv[])
 					fprintf(stderr,"Disconnected from IRC\n");
 					exit(EXIT_FAILURE);
 				}
+
 				if(strncmp(rbuf,"PING :",6) == 0)
 				{
 					sprintf(wbuf,"PO%s",&rbuf[2]);
 					write(irc_sockfd,wbuf,strlen(wbuf));
 					write_irc = 1;
+					continue;
+				}
+
+				sprintf(tmp," 001 %s :Welcome to the ",prefs.irc_nick);
+				if(strstr(rbuf,tmp))
+				{
+					sprintf(wbuf,"JOIN %s\n",prefs.irc_channel);
+					write(irc_sockfd,wbuf,strlen(wbuf));
+					write_irc = 1;
+					continue;
+				}
+
+				sprintf(tmp,"PRIVMSG %s :!np\r\n",prefs.irc_channel);
+				if(strstr(rbuf,tmp))
+				{
+					printf("rbuf: %s\n",rbuf);
+					printf("wbuf: %s\n",wbuf);
+					sprintf(wbuf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",prefs.irc_channel,current_song.artist,current_song.title,current_song.album);
+					write(irc_sockfd,wbuf,strlen(wbuf));
+					write_irc = 1;
+					continue;
 				}
 			}
 		}
