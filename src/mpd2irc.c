@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
 	prefs.mpd_password = NULL;
 	prefs.mpd_port = 6600;
 
+	current_song.file = NULL;
+
 	mpd_sockfd = server_connect(prefs.mpd_server, prefs.mpd_port);
 	if(mpd_sockfd < 0)
 	{
@@ -156,8 +158,11 @@ int main(int argc, char *argv[])
 					{
 						if(strncmp(line,"file: ",6) == 0)
 						{
-							if(strncmp(current_song.file,strdup(&line[6]),strlen(current_song.file)) == 0)
-								printf("file unchanged\n");
+							if(current_song.file != NULL)
+							{
+								if(strncmp(current_song.file,strdup(&line[6]),strlen(current_song.file)) == 0)
+									printf("file unchanged\n");
+							}
 							current_song.file = strdup(&line[6]);
 						}
 						if(strncmp(line,"Artist: ",8) == 0)
