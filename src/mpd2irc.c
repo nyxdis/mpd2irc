@@ -47,6 +47,7 @@ struct song_info {
 	char *artist;
 	char *title;
 	char *album;
+	char *file;
 } current_song;
 
 int main(int argc, char *argv[])
@@ -131,8 +132,6 @@ int main(int argc, char *argv[])
 			rbuf[sr] = '\0';
 			if(sr > 0)
 			{
-				printf("read %d bytes from mpd: %s",sr,rbuf);
-				write_mpd = 1;
 				if(strncmp(rbuf,"OK MPD",6) == 0)
 				{
 					sscanf(rbuf,"%*s %*s %d.%d.",&major,&minor);
@@ -141,14 +140,26 @@ int main(int argc, char *argv[])
 						fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
 						exit(EXIT_FAILURE);
 					}
+					write(mpd_sockfd,"idle player\n",12);
+					write_mpd = 1;
 				}
 				else if(strncmp(rbuf,"changed: player",15) == 0)
+				{
 					write(mpd_sockfd,"currentsong\n",12);
+					write(mpd_sockfd,"idle player\n",12);
+					write_mpd = 1;
+				}
 				else if(strncmp(rbuf,"file: ",6) == 0)
 				{
 					line = strtok_r(rbuf,"\n",&saveptr);			
 					do
 					{
+						if(strncmp(line,"file: ",6) == 0)
+						{
+							if(strncmp(current_song.file,strdup(&line[6]),strlen(current_song.file)) == 0)
+								printf("file unchanged\n");
+							current_song.file = strdup(&line[6]);
+						}
 						if(strncmp(line,"Artist: ",8) == 0)
 							current_song.artist = strdup(&line[8]);
 						if(strncmp(line,"Title: ",7) == 0)
@@ -156,12 +167,12 @@ int main(int argc, char *argv[])
 						if(strncmp(line,"Album: ",7) == 0)
 							current_song.album = strdup(&line[7]);
 					} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
-					printf("PRIVMSG %s :New song: %s - %s (From %s)\n",
+					sprintf(wbuf,"PRIVMSG %s :New song: %s - %s (From %s)\n",
 						prefs.irc_channel,current_song.artist,current_song.title,
 						current_song.album);
-				//	write(mpd_sockfd,wbuf,strlen(wbuf));
+					write(irc_sockfd,wbuf,strlen(wbuf));
+					write_irc = 1;
 				}
-				write(mpd_sockfd,"idle\n",5);
 			}
 		}
 
@@ -172,11 +183,16 @@ int main(int argc, char *argv[])
 			rbuf[sr] = '\0';
 			if(sr > 0)
 			{
-				printf("read %d bytes from irc: %s",sr,rbuf);
-				if(strncmp(rbuf,"ERROR :Closing Link",19) == 0)
+				if(strstr(rbuf,"ERROR :Closing Link"))
 				{
 					fprintf(stderr,"Disconnected from IRC\n");
 					exit(EXIT_FAILURE);
+				}
+				if(strncmp(rbuf,"PING :",6) == 0)
+				{
+					sprintf(wbuf,"PO%s",&rbuf[2]);
+					write(irc_sockfd,wbuf,strlen(wbuf));
+					write_irc = 1;
 				}
 			}
 		}
