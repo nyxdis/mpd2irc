@@ -23,7 +23,6 @@
 int server_connect_unix(const char *path);
 int server_connect_tcp(const char *host, int port);
 int server_connect(const char *host, int port);
-int irc_connect(void);
 
 struct preferences {
 	char *irc_server;
@@ -84,7 +83,7 @@ int main(int argc, char *argv[])
 	prefs.mpd_password = NULL;
 	prefs.mpd_port = 6600;
 
-	current_song.file = NULL;
+	current_song.file = strdup("");
 
 	mpd_sockfd = server_connect(prefs.mpd_server, prefs.mpd_port);
 	if(mpd_sockfd < 0)
@@ -151,41 +150,37 @@ int main(int argc, char *argv[])
 						exit(EXIT_FAILURE);
 					}
 					write(mpd_sockfd,"currentsong\n",12);
-					write(mpd_sockfd,"idle player\n",12);
+					write(mpd_sockfd,"idle options player\n",20);
 					write_mpd = 1;
 				}
 				else if(strncmp(rbuf,"changed: player",15) == 0)
 				{
 					write(mpd_sockfd,"currentsong\n",12);
-					write(mpd_sockfd,"idle player\n",12);
+					write(mpd_sockfd,"idle options player\n",20);
 					write_mpd = 1;
 				}
 				else if(strncmp(rbuf,"file: ",6) == 0)
 				{
 					line = strtok_r(rbuf,"\n",&saveptr);			
-					do
+					if(strncmp(current_song.file,&rbuf[6],strlen(&line[6])))
 					{
-						if(strncmp(line,"file: ",6) == 0)
+						do
 						{
-							if(current_song.file != NULL)
-							{
-								if(strncmp(current_song.file,strdup(&line[6]),strlen(current_song.file)) == 0)
-									printf("file unchanged\n");
-							}
-							current_song.file = strdup(&line[6]);
-						}
-						if(strncmp(line,"Artist: ",8) == 0)
-							current_song.artist = strdup(&line[8]);
-						if(strncmp(line,"Title: ",7) == 0)
-							current_song.title = strdup(&line[7]);
-						if(strncmp(line,"Album: ",7) == 0)
-							current_song.album = strdup(&line[7]);
-					} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
-					sprintf(wbuf,"PRIVMSG %s :New song: %s - %s (From %s)\n",
-						prefs.irc_channel,current_song.artist,current_song.title,
-						current_song.album);
-					write(irc_sockfd,wbuf,strlen(wbuf));
-					write_irc = 1;
+							if(strncmp(line,"file: ",6) == 0)
+								current_song.file = strdup(&line[6]);
+							if(strncmp(line,"Artist: ",8) == 0)
+								current_song.artist = strdup(&line[8]);
+							if(strncmp(line,"Title: ",7) == 0)
+								current_song.title = strdup(&line[7]);
+							if(strncmp(line,"Album: ",7) == 0)
+								current_song.album = strdup(&line[7]);
+						} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
+						sprintf(wbuf,"PRIVMSG %s :New song: %s - %s (From %s)\n",
+							prefs.irc_channel,current_song.artist,current_song.title,
+							current_song.album);
+						write(irc_sockfd,wbuf,strlen(wbuf));
+						write_irc = 1;
+					}
 				}
 			}
 		}
