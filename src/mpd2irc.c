@@ -273,6 +273,7 @@ int parser(const char *origin, char *msg)
 					fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
 					exit(EXIT_FAILURE);
 				}
+				write(mpd_sockfd,"status\n",7);
 				write(mpd_sockfd,"currentsong\n",12);
 				write(mpd_sockfd,"idle options player\n",20);
 				write_mpd = 1;
