@@ -23,6 +23,7 @@
 int server_connect_unix(const char *path);
 int server_connect_tcp(const char *host, int port);
 int server_connect(const char *host, int port);
+int parser(const char *origin, char *msg);
 
 struct preferences {
 	char *irc_server;
@@ -56,13 +57,14 @@ struct mpd_status {
 	enum { PLAY, STOP, PAUSE } state;
 } mpd_status;
 
-int main(int argc, char *argv[])
+int irc_sockfd, mpd_sockfd;
+unsigned short write_irc = 0, write_mpd = 0;
+
+int main(void)
 {
-	int irc_sockfd, mpd_sockfd, sr;
-	unsigned int major, minor;
-	unsigned short write_irc = 0, write_mpd = 0;
-	char wbuf[256], rbuf[1024], *saveptr, *line;
-	char tmp[256];
+	int sr;
+	char buf[1024];
+	char tmp[256]; /* remove after moving IRC to parser() */
 	struct timeval waitd;
 	fd_set read_flags, write_flags;
 
@@ -99,10 +101,10 @@ int main(int argc, char *argv[])
 	}
 
 	write_irc = 1;
-	sprintf(wbuf,"NICK %s\n",prefs.irc_nick);
-	write(irc_sockfd,wbuf,strlen(wbuf));
-	sprintf(wbuf,"USER %s 0 * :%s\n",prefs.irc_username,prefs.irc_realname);
-	write(irc_sockfd,wbuf,strlen(wbuf));
+	sprintf(buf,"NICK %s\n",prefs.irc_nick);
+	write(irc_sockfd,buf,strlen(buf));
+	sprintf(buf,"USER %s 0 * :%s\n",prefs.irc_username,prefs.irc_realname);
+	write(irc_sockfd,buf,strlen(buf));
 
 	while(1)
 	{
@@ -137,91 +139,49 @@ int main(int argc, char *argv[])
 		if(FD_ISSET(mpd_sockfd,&read_flags))
 		{
 			FD_CLR(mpd_sockfd,&read_flags);
-			sr = read(mpd_sockfd,rbuf,sizeof(rbuf));
-			rbuf[sr] = '\0';
+			sr = read(mpd_sockfd,buf,sizeof(buf));
+			buf[sr] = '\0';
 			if(sr > 0)
 			{
-				if(strncmp(rbuf,"OK MPD",6) == 0)
-				{
-					sscanf(rbuf,"%*s %*s %d.%d.",&major,&minor);
-					if(major == 0 && minor < 14)
-					{
-						fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
-						exit(EXIT_FAILURE);
-					}
-					write(mpd_sockfd,"currentsong\n",12);
-					write(mpd_sockfd,"idle options player\n",20);
-					write_mpd = 1;
-				}
-				else if(strncmp(rbuf,"changed: player",15) == 0)
-				{
-					write(mpd_sockfd,"currentsong\n",12);
-					write(mpd_sockfd,"idle options player\n",20);
-					write_mpd = 1;
-				}
-				else if(strncmp(rbuf,"file: ",6) == 0)
-				{
-					line = strtok_r(rbuf,"\n",&saveptr);			
-					if(strncmp(current_song.file,&rbuf[6],strlen(&line[6])))
-					{
-						do
-						{
-							if(strncmp(line,"file: ",6) == 0)
-								current_song.file = strdup(&line[6]);
-							if(strncmp(line,"Artist: ",8) == 0)
-								current_song.artist = strdup(&line[8]);
-							if(strncmp(line,"Title: ",7) == 0)
-								current_song.title = strdup(&line[7]);
-							if(strncmp(line,"Album: ",7) == 0)
-								current_song.album = strdup(&line[7]);
-						} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
-						sprintf(wbuf,"PRIVMSG %s :New song: %s - %s (From %s)\n",
-							prefs.irc_channel,current_song.artist,current_song.title,
-							current_song.album);
-						write(irc_sockfd,wbuf,strlen(wbuf));
-						write_irc = 1;
-					}
-				}
+				parser("mpd",buf);
 			}
 		}
 
 		if(FD_ISSET(irc_sockfd,&read_flags))
 		{
 			FD_CLR(irc_sockfd,&read_flags);
-			sr = read(irc_sockfd,rbuf,sizeof(rbuf));
-			rbuf[sr] = '\0';
+			sr = read(irc_sockfd,buf,sizeof(buf));
+			buf[sr] = '\0';
 			if(sr > 0)
 			{
-				if(strstr(rbuf,"ERROR :Closing Link"))
+				if(strstr(buf,"ERROR :Closing Link"))
 				{
 					fprintf(stderr,"Disconnected from IRC\n");
 					exit(EXIT_FAILURE);
 				}
 
-				if(strncmp(rbuf,"PING :",6) == 0)
+				if(strncmp(buf,"PING :",6) == 0)
 				{
-					sprintf(wbuf,"PO%s",&rbuf[2]);
-					write(irc_sockfd,wbuf,strlen(wbuf));
+					sprintf(buf,"PO%s",&buf[2]);
+					write(irc_sockfd,buf,strlen(buf));
 					write_irc = 1;
 					continue;
 				}
 
 				sprintf(tmp," 001 %s :Welcome to the ",prefs.irc_nick);
-				if(strstr(rbuf,tmp))
+				if(strstr(buf,tmp))
 				{
-					sprintf(wbuf,"JOIN %s\n",prefs.irc_channel);
-					write(irc_sockfd,wbuf,strlen(wbuf));
+					sprintf(buf,"JOIN %s\n",prefs.irc_channel);
+					write(irc_sockfd,buf,strlen(buf));
 					write_irc = 1;
 					continue;
 				}
 
 				sprintf(tmp,"PRIVMSG %s :!np\r\n",prefs.irc_channel);
-				if(strstr(rbuf,tmp))
+				if(strstr(buf,tmp))
 				{
-					printf("rbuf: %s\n",rbuf);
-					printf("wbuf: %s\n",wbuf);
-					sprintf(wbuf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",prefs.irc_channel,current_song.artist,current_song.title,current_song.album);
-					write(irc_sockfd,wbuf,strlen(wbuf));
+					sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",prefs.irc_channel,current_song.artist,current_song.title,current_song.album);
+					write(irc_sockfd,buf,strlen(buf));
 					write_irc = 1;
 					continue;
 				}
@@ -292,4 +252,74 @@ int server_connect(const char *host, int port)
 		return -1;
 
 	return sockfd;
+}
+
+int parser(const char *origin, char *msg)
+{
+	unsigned int major, minor;
+	unsigned short mpd_new_song;
+	char *line, *saveptr, buf[256];//, tmp[256];
+
+	line = strtok_r(msg,"\n",&saveptr);
+	do
+	{
+		if(strncmp(origin,"mpd",3) == 0)
+		{
+			if(strncmp(line,"OK MPD",6) == 0)
+			{
+				sscanf(line,"%*s %*s %d.%d.",&major,&minor);
+				if(major == 0 && minor < 14)
+				{
+					fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
+					exit(EXIT_FAILURE);
+				}
+				write(mpd_sockfd,"currentsong\n",12);
+				write(mpd_sockfd,"idle options player\n",20);
+				write_mpd = 1;
+			}
+			else if(strncmp(line,"changed: player",15) == 0)
+			{
+				write(mpd_sockfd,"currentsong\n",12);
+				write(mpd_sockfd,"idle options player\n",20);
+				write_mpd = 1;
+			}
+			else if(strncmp(line,"file: ",6) == 0)
+			{
+				if(strncmp(current_song.file,&line[6],strlen(&line[6])) == 0)
+					mpd_new_song = 1;
+			}
+
+			if(mpd_new_song == 1)
+			{
+				if(strncmp(line,"file: ",6) == 0)
+					current_song.file = strdup(&line[6]);
+				else if(strncmp(line,"Artist: ",8) == 0)
+					current_song.artist = strdup(&line[8]);
+				else if(strncmp(line,"Title: ",7) == 0)
+					current_song.title = strdup(&line[7]);
+				else if(strncmp(line,"Album: ",7) == 0)
+					current_song.album = strdup(&line[7]);
+			}
+		}
+		else if(strncmp(origin,"irc",3) == 0)
+		{
+			fprintf(stderr,"Parsing IRC events NYI\n");
+		}
+		else
+		{
+			fprintf(stderr,"Error while parsing: Unknown origin '%s'\n",origin);
+			exit(EXIT_FAILURE);
+		}
+	} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
+
+	if(mpd_new_song == 1)
+	{
+		sprintf(buf,"PRIVMSG %s :New song: %s - %s (From %s)\n",
+			prefs.irc_channel,current_song.artist,current_song.title,
+			current_song.album);
+		write(irc_sockfd,buf,strlen(buf));
+		write_irc = 1;
+		mpd_new_song = 0;
+	}
+	return 0;
 }
