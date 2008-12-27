@@ -11,6 +11,9 @@ AM_INIT_AUTOMAKE
 AC_PROG_CC
 
 # Checks for libraries.
+PKG_CHECK_MODULES([confuse], [libconfuse])
+AC_SUBST(confuse_LIBS)
+AC_SUBST(confuse_CFLAGS)
 
 # Checks for header files.
 AC_CHECK_HEADERS([fcntl.h netdb.h netinet/in.h string.h sys/socket.h])

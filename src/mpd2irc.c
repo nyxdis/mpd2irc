@@ -6,6 +6,7 @@
  */
 
 
+#include <confuse.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <signal.h>
@@ -24,6 +25,7 @@
 int cleanup(void);
 int irc_match(const char *line, const char *msg);
 int irc_say(const char *msg);
+int m2i_error(const char *msg);
 int mpd_write(const char *msg);
 int parser(const char *origin, char *msg);
 int server_connect(const char *host, int port);
@@ -73,11 +75,52 @@ unsigned short write_irc = 0, write_mpd = 0, announce = 1;
 
 int main(void)
 {
+	cfg_t *cfg, *cfg_mpd, *cfg_irc_conn, *cfg_irc_auth;
 	char buf[1024];
 	fd_set read_flags, write_flags;
 	int sr;
 	struct sigaction sa;
 	struct timeval waitd;
+
+	/* available options */
+	cfg_opt_t mpd_opts[] = {
+		CFG_STR("server","localhost",CFGF_NONE),
+		CFG_STR("password","",CFGF_NONE),
+		CFG_INT("port",6600,CFGF_NONE),
+		CFG_END()
+	};
+
+	cfg_opt_t irc_conn_opts[] = {
+		CFG_STR("server","",CFGF_NONE),
+		CFG_STR("nick",PACKAGE,CFGF_NONE),
+		CFG_STR("realname",PACKAGE_STRING,CFGF_NONE),
+		CFG_STR("username",PACKAGE_NAME,CFGF_NONE),
+		CFG_STR("channel","",CFGF_NONE),
+		CFG_INT("port",6667,CFGF_NONE),
+		CFG_END()
+	};
+
+	cfg_opt_t irc_auth_opts[] = {
+		CFG_STR("authserv","",CFGF_NONE),
+		CFG_STR("cmd","login",CFGF_NONE),
+		CFG_STR("nick","",CFGF_NONE),
+		CFG_STR("password","",CFGF_NONE),
+		CFG_END()
+	};
+
+	cfg_opt_t opts[] = {
+		CFG_SEC("mpd",mpd_opts,CFGF_NONE),
+		CFG_SEC("irc_connection",irc_conn_opts,CFGF_NONE),
+		CFG_SEC("irc_auth",irc_auth_opts,CFGF_NONE),
+		CFG_STR("die_password","secret",CFGF_NONE),
+		CFG_END()
+	};
+
+	cfg = cfg_init(opts,CFGF_NONE);
+	cfg_parse(cfg,"mpd2irc.conf");
+	cfg_mpd = cfg_getsec(cfg,"mpd");
+	cfg_irc_conn = cfg_getsec(cfg,"irc_connection");
+	cfg_irc_auth = cfg_getsec(cfg,"irc_auth");
 
 	/* Signal handler */
 	sa.sa_handler = sighandler;
@@ -89,26 +132,34 @@ int main(void)
 	sigaction(SIGUSR2,&sa,NULL);
 	sigaction(SIGHUP,&sa,NULL);
 
-	/* set default values */
-	prefs.irc_server = strdup("irc.dronf.org");
-	prefs.irc_nick = strdup(PACKAGE_NAME);
-	prefs.irc_realname = strdup(PACKAGE_STRING);
-	prefs.irc_username = strdup(PACKAGE);
-	prefs.irc_channel = strdup("#penismeister");
-	prefs.irc_port = 6667;
+	/* set settings parsed from config file */
+	prefs.irc_server = cfg_getstr(cfg_irc_conn,"server");
+	prefs.irc_nick = cfg_getstr(cfg_irc_conn,"nick");
+	prefs.irc_realname = cfg_getstr(cfg_irc_conn,"realname");
+	prefs.irc_username = cfg_getstr(cfg_irc_conn,"username");
+	prefs.irc_channel = cfg_getstr(cfg_irc_conn,"channel");
+	prefs.irc_port = cfg_getint(cfg_irc_conn,"port");
 
-	prefs.irc_authserv = NULL;
-	prefs.irc_authcmd = strdup("");
-	prefs.irc_authnick = strdup("");
-	prefs.irc_authpass = strdup("");
+	prefs.irc_authserv = cfg_getstr(cfg_irc_auth,"authserv");
+	prefs.irc_authcmd = cfg_getstr(cfg_irc_auth,"cmd");
+	prefs.irc_authnick = cfg_getstr(cfg_irc_auth,"nick");
+	prefs.irc_authpass = cfg_getstr(cfg_irc_auth,"password");
 
-	prefs.mpd_server = strdup("localhost");
-	prefs.mpd_password = NULL;
-	prefs.mpd_port = 6600;
+	prefs.mpd_server = cfg_getstr(cfg_mpd,"server");
+	prefs.mpd_password = cfg_getstr(cfg_mpd,"password");
+	prefs.mpd_port = cfg_getint(cfg_mpd,"port");
 
-	prefs.die_password = strdup("secret");
+	prefs.die_password = cfg_getstr(cfg,"die_password");
 
 	current_song.file = strdup("");
+
+	/* check required settings */
+	if(strlen(prefs.irc_server) == 0)
+		m2i_error("IRC server undefined");
+	if(strlen(prefs.irc_channel) == 0)
+		m2i_error("IRC channel undefined");
+	if(strncmp(prefs.die_password,"secret",6) == 0)
+		printf("Warning: Weak die password\n");
 
 	/* connect to IRC and MPD */
 	mpd_sockfd = server_connect(prefs.mpd_server, prefs.mpd_port);
@@ -265,8 +316,8 @@ int parser(const char *origin, char *msg)
 			/* mpd error */
 			if(strncmp(line,"ACK ",4) == 0)
 			{
-				printf("MPD error: %s\n",&line[4]);
-				exit(EXIT_FAILURE);
+				sprintf(buf,"MPD error: %s",&line[4]);
+				m2i_error(buf);
 			}
 
 			/* connected to mpd */
@@ -274,13 +325,11 @@ int parser(const char *origin, char *msg)
 			{
 				sscanf(line,"%*s %*s %d.%d.",&major,&minor);
 				if(major == 0 && minor < 14)
-				{
-					fprintf(stderr,"Your MPD is too old, "
-						"you need at least MPD 0.14\n");
-					exit(EXIT_FAILURE);
-				}
+					m2i_error("Your MPD is too old, "
+						"you need at least MPD 0.14.");
+
 				/* authentication */
-				if(prefs.mpd_password != NULL)
+				if(strlen(prefs.mpd_password) > 0)
 				{
 					sprintf(buf,"password %s\n",
 					prefs.mpd_password);
@@ -330,10 +379,7 @@ int parser(const char *origin, char *msg)
 		{
 			/* IRC error */
 			if(strncmp(line,"ERROR :Closing Link",19) == 0)
-			{
-				fprintf(stderr,"Disconnected from IRC\n");
-				exit(EXIT_FAILURE);
-			}
+				m2i_error("Disconnected from IRC");
 
 			else if(strncmp(line,"PING :",6) == 0)
 			{
@@ -446,9 +492,9 @@ int parser(const char *origin, char *msg)
 		}
 		else
 		{
-			fprintf(stderr,"Error while parsing: "
-				"Unknown origin '%s'\n",origin);
-			exit(EXIT_FAILURE);
+			sprintf(buf,"Error while parsing: "
+				"Unknown origin '%s'",origin);
+			m2i_error(buf);
 		}
 	} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
 
@@ -508,4 +554,10 @@ int irc_match(const char *line, const char *msg)
 	if(strstr(line,buf))
 		return 0;
 	return 1;
+}
+
+int m2i_error(const char *msg)
+{
+	fprintf(stderr,"%s\n",msg);
+	exit(EXIT_FAILURE);
 }
