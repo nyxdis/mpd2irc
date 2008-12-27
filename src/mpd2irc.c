@@ -103,8 +103,8 @@ int main(void)
 	};
 
 	cfg_opt_t irc_auth_opts[] = {
-		CFG_STR("authserv","",CFGF_NONE),
-		CFG_STR("cmd","login",CFGF_NONE),
+		CFG_STR("authserv","nickserv",CFGF_NONE),
+		CFG_STR("cmd","identify",CFGF_NONE),
 		CFG_STR("nick","",CFGF_NONE),
 		CFG_STR("password","",CFGF_NONE),
 		CFG_END()
@@ -492,6 +492,15 @@ int parser(const char *origin, char *msg)
 			sprintf(tmp," 001 %s :Welcome to the ",prefs.irc_nick);
 			if(strstr(line,tmp))
 			{
+				if(strlen(prefs.irc_authserv) > 0)
+				{
+					sprintf(buf,"PRIVMSG %s :%s %s %s\n",
+						prefs.irc_authserv,
+						prefs.irc_authcmd,
+						prefs.irc_authnick,
+						prefs.irc_authpass);
+					write(irc_sockfd,buf,strlen(buf));
+				}
 				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
 				write(irc_sockfd,buf,strlen(buf));
 				write_irc = 1;

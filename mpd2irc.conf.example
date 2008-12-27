@@ -25,13 +25,13 @@ irc_connection {
 	#username = ""
 }
 
-## IRC authentication (NYI)
+## IRC authentication
 ##
 ## Authentication is disabled when authserv is empty.
 
 #irc_auth {
-	#authserv = ""
-	#cmd = "login"
+	#authserv = "nickserv"
+	#cmd = "identify"
 	#nick = ""
 	#password = ""
 #}
