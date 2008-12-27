@@ -335,45 +335,28 @@ int parser(const char *origin, char *msg)
 				exit(EXIT_FAILURE);
 			}
 
-			if(strncmp(line,"PING :",6) == 0)
+			else if(strncmp(line,"PING :",6) == 0)
 			{
 				sprintf(buf,"PO%s",&buf[2]);
 				write(irc_sockfd,buf,strlen(buf));
 				write_irc = 1;
-				continue;
 			}
 
-			sprintf(tmp," 001 %s :Welcome to the ",prefs.irc_nick);
-			if(strstr(line,tmp))
-			{
-				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
-				write(irc_sockfd,buf,strlen(buf));
-				write_irc = 1;
-				continue;
-			}
-
-			if(irc_match(line,"next") == 0)
-			{
+			else if(irc_match(line,"next") == 0)
 				mpd_write("next");
-				continue;
-			}
 
-			if(irc_match(line,"prev") == 0)
-			{
+			else if(irc_match(line,"prev") == 0)
 				mpd_write("previous");
-				continue;
-			}
 
-			if(irc_match(line,"pause") == 0)
+			else if(irc_match(line,"pause") == 0)
 			{
 				if(strncmp(mpd_status.state,"play",4) == 0)
 					mpd_write("pause 1");
 				else
 					mpd_write("play");
-				continue;
 			}
 
-			if(irc_match(line,"status") == 0)
+			else if(irc_match(line,"status") == 0)
 			{
 				sprintf(buf,"Repeat: %s, Random: %s, "
 					"Crossfade: %d sec, State: %s",
@@ -381,35 +364,66 @@ int parser(const char *origin, char *msg)
 					(mpd_status.random == 1 ? "on" : "off"),
 					mpd_status.xfade,mpd_status.state);
 				irc_say(buf);
-				continue;
 			}
 
-			if(irc_match(line,"np") == 0)
+			else if(irc_match(line,"np") == 0)
 			{
 				sprintf(buf,"Now Playing: %s - %s (%s)",
 					current_song.artist,
 					current_song.title,current_song.album);
 				irc_say(buf);
-				continue;
 			}
 
-			if(irc_match(line,"version") == 0)
+			else if(irc_match(line,"version") == 0)
 			{
 				sprintf(buf,"This is %s",PACKAGE_STRING);
 				irc_say(buf);
-				continue;
 			}
 
-			if(irc_match(line,"announce") == 0)
+			else if(irc_match(line,"announce") == 0)
 			{
 				if(announce == 0) announce = 1;
 				else announce = 0;
 				sprintf(buf,"Announcements %sabled.",
 					(announce == 0 ? "dis" : "en"));
 				irc_say(buf);
-				continue;
 			}
 
+			else if(irc_match(line,"play") == 0)
+				mpd_write("play");
+
+			else if(irc_match(line,"stop") == 0)
+				mpd_write("stop");
+
+			else if(irc_match(line,"random") == 0)
+			{
+				if(mpd_status.random == 0)
+				{
+					mpd_write("random 1");
+					irc_say("Enabled random");
+				}
+				else
+				{
+					mpd_write("random 0");
+					irc_say("Disabled random");
+				}
+			}
+
+			else if(irc_match(line,"repeat") == 0)
+			{
+				if(mpd_status.repeat == 0)
+				{
+					mpd_write("repeat 1");
+					irc_say("Enabled repeat");
+				}
+				else
+				{
+					mpd_write("repeat 0");
+					irc_say("Disabled repeat");
+				}
+			}
+
+			/* received die request */
 			sprintf(tmp,"PRIVMSG %s :die %s\r",prefs.irc_nick,
 				prefs.die_password);
 			if(strstr(line,tmp))
@@ -418,6 +432,16 @@ int parser(const char *origin, char *msg)
 				write(irc_sockfd,buf,strlen(buf));
 				write(mpd_sockfd,"close\n",6);
 				cleanup();
+			}
+
+			/* connected to IRC */
+			sprintf(tmp," 001 %s :Welcome to the ",prefs.irc_nick);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
+				write(irc_sockfd,buf,strlen(buf));
+				write_irc = 1;
+				continue;
 			}
 		}
 		else
