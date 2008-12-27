@@ -36,6 +36,7 @@ void sighandler(int sig);
 /* preferences parsed from the config file */
 struct preferences {
 	char *irc_server;
+	char *irc_password;
 	char *irc_nick;
 	char *irc_realname;
 	char *irc_username;
@@ -92,6 +93,7 @@ int main(void)
 
 	cfg_opt_t irc_conn_opts[] = {
 		CFG_STR("server","",CFGF_NONE),
+		CFG_STR("password","",CFGF_NONE),
 		CFG_STR("nick",PACKAGE,CFGF_NONE),
 		CFG_STR("realname",PACKAGE_STRING,CFGF_NONE),
 		CFG_STR("username",PACKAGE_NAME,CFGF_NONE),
@@ -134,6 +136,7 @@ int main(void)
 
 	/* set settings parsed from config file */
 	prefs.irc_server = cfg_getstr(cfg_irc_conn,"server");
+	prefs.irc_password = cfg_getstr(cfg_irc_conn,"password");
 	prefs.irc_nick = cfg_getstr(cfg_irc_conn,"nick");
 	prefs.irc_realname = cfg_getstr(cfg_irc_conn,"realname");
 	prefs.irc_username = cfg_getstr(cfg_irc_conn,"username");
@@ -177,6 +180,11 @@ int main(void)
 
 	/* IRC protocol introduction */
 	write_irc = 1;
+	if(strlen(prefs.irc_password) > 0)
+	{
+		sprintf(buf,"PASS %s\n",prefs.irc_password);
+		write(irc_sockfd,buf,strlen(buf));
+	}
 	sprintf(buf,"NICK %s\n",prefs.irc_nick);
 	write(irc_sockfd,buf,strlen(buf));
 	sprintf(buf,"USER %s 0 * :%s\n",prefs.irc_username,prefs.irc_realname);
