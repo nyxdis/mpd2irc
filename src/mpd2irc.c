@@ -21,12 +21,13 @@
 #include "config.h"
 #endif
 
-int server_connect_unix(const char *path);
-int server_connect_tcp(const char *host, int port);
-int server_connect(const char *host, int port);
-int parser(const char *origin, char *msg);
-void sighandler(int sig);
+int irc_say(const char *msg);
 int mpd_write(const char *msg);
+int parser(const char *origin, char *msg);
+int server_connect(const char *host, int port);
+int server_connect_tcp(const char *host, int port);
+int server_connect_unix(const char *path);
+void sighandler(int sig);
 
 struct preferences {
 	char *irc_server;
@@ -61,7 +62,7 @@ struct mpd_status {
 } mpd_status;
 
 int irc_sockfd, mpd_sockfd;
-unsigned short write_irc = 0, write_mpd = 0;
+unsigned short write_irc = 0, write_mpd = 0, announce = 1;
 
 int main(void)
 {
@@ -94,7 +95,7 @@ int main(void)
 	prefs.irc_authnick = strdup("");
 	prefs.irc_authpass = strdup("");
 
-	prefs.mpd_server = strdup("localhost");
+	prefs.mpd_server = strdup("/var/lib/mpd/socket");
 	prefs.mpd_password = NULL;
 	prefs.mpd_port = 6600;
 
@@ -344,24 +345,30 @@ int parser(const char *origin, char *msg)
 			sprintf(tmp,"PRIVMSG %s :!status\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
-				sprintf(buf,"PRIVMSG %s :Repeat: %s, Random: %s, Crossfade: %d sec, State: %s\n",
-					prefs.irc_channel,(mpd_status.repeat == 1 ? "on" : "off"),
+				sprintf(buf,"Repeat: %s, Random: %s, Crossfade: %d sec, State: %s",
+					(mpd_status.repeat == 1 ? "on" : "off"),
 					(mpd_status.random == 1 ? "on" : "off"),
 					mpd_status.xfade,mpd_status.state);
-				write(irc_sockfd,buf,strlen(buf));
-				write_irc = 1;
+				irc_say(buf);
 				continue;
 			}
 
 			sprintf(tmp,"PRIVMSG %s :!np\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
-				sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (%s)\n",
-					prefs.irc_channel,current_song.artist,
+				sprintf(buf,"Now Playing: %s - %s (%s)",
+					current_song.artist,
 					current_song.title,current_song.album);
-				write(irc_sockfd,buf,strlen(buf));
-				write_irc = 1;
+				irc_say(buf);
 				continue;
+			}
+			sprintf(tmp,"PRIVMSG %s :!announce\r",prefs.irc_channel);
+			if(strstr(line,tmp))
+			{
+				if(announce == 0) announce = 1;
+				else announce = 0;
+				sprintf(buf,"Announcing %sabled.",(announce == 0 ? "dis" : "en"));
+				irc_say(buf);
 			}
 		}
 		else
@@ -371,15 +378,13 @@ int parser(const char *origin, char *msg)
 		}
 	} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
 
-	if(mpd_new_song == 1)
+	if(mpd_new_song == 1 && announce == 1)
 	{
-		sprintf(buf,"PRIVMSG %s :New song: %s - %s (%s)\n",
-			prefs.irc_channel,current_song.artist,current_song.title,
-			current_song.album);
-		write(irc_sockfd,buf,strlen(buf));
-		write_irc = 1;
-		mpd_new_song = 0;
+		sprintf(buf,"New song: %s - %s (%s)",
+			current_song.artist,current_song.title,current_song.album);
+		irc_say(buf);
 	}
+	mpd_new_song = 0;
 	return 0;
 }
 
@@ -402,5 +407,14 @@ int mpd_write(const char *msg)
 	sprintf(buf,"noidle\n%s\nidle options player\n",msg);
 	write(mpd_sockfd,buf,strlen(buf));
 	write_mpd = 1;
+	return 0;
+}
+
+int irc_say(const char *msg)
+{
+	char buf[256];
+	sprintf(buf,"PRIVMSG %s :%s\n",prefs.irc_channel,msg);
+	write(irc_sockfd,buf,strlen(buf));
+	write_irc = 1;
 	return 0;
 }
