@@ -64,7 +64,6 @@ int main(void)
 {
 	int sr;
 	char buf[1024];
-	char tmp[256]; /* remove after moving IRC to parser() */
 	struct timeval waitd;
 	fd_set read_flags, write_flags;
 
@@ -154,37 +153,7 @@ int main(void)
 			buf[sr] = '\0';
 			if(sr > 0)
 			{
-				if(strstr(buf,"ERROR :Closing Link"))
-				{
-					fprintf(stderr,"Disconnected from IRC\n");
-					exit(EXIT_FAILURE);
-				}
-
-				if(strncmp(buf,"PING :",6) == 0)
-				{
-					sprintf(buf,"PO%s",&buf[2]);
-					write(irc_sockfd,buf,strlen(buf));
-					write_irc = 1;
-					continue;
-				}
-
-				sprintf(tmp," 001 %s :Welcome to the ",prefs.irc_nick);
-				if(strstr(buf,tmp))
-				{
-					sprintf(buf,"JOIN %s\n",prefs.irc_channel);
-					write(irc_sockfd,buf,strlen(buf));
-					write_irc = 1;
-					continue;
-				}
-
-				sprintf(tmp,"PRIVMSG %s :!np\r\n",prefs.irc_channel);
-				if(strstr(buf,tmp))
-				{
-					sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",prefs.irc_channel,current_song.artist,current_song.title,current_song.album);
-					write(irc_sockfd,buf,strlen(buf));
-					write_irc = 1;
-					continue;
-				}
+				parser("irc",buf);
 			}
 		}
 	}
@@ -257,12 +226,13 @@ int server_connect(const char *host, int port)
 int parser(const char *origin, char *msg)
 {
 	unsigned int major, minor;
-	unsigned short mpd_new_song;
-	char *line, *saveptr, buf[256];//, tmp[256];
+	unsigned short mpd_new_song = 0;
+	char *line, *saveptr, buf[256], tmp[256];
 
 	line = strtok_r(msg,"\n",&saveptr);
 	do
 	{
+		/* mpd events */
 		if(strncmp(origin,"mpd",3) == 0)
 		{
 			if(strncmp(line,"OK MPD",6) == 0)
@@ -286,7 +256,7 @@ int parser(const char *origin, char *msg)
 			}
 			else if(strncmp(line,"file: ",6) == 0)
 			{
-				if(strncmp(current_song.file,&line[6],strlen(&line[6])) == 0)
+				if(strncmp(current_song.file,&line[6],strlen(&line[6])))
 					mpd_new_song = 1;
 			}
 
@@ -302,9 +272,42 @@ int parser(const char *origin, char *msg)
 					current_song.album = strdup(&line[7]);
 			}
 		}
+
+		/* IRC events */
 		else if(strncmp(origin,"irc",3) == 0)
 		{
-			fprintf(stderr,"Parsing IRC events NYI\n");
+			if(strncmp(line,"ERROR :Closing Link",19) == 0)
+			{
+				printf("line: %s\n",line);
+				fprintf(stderr,"Disconnected from IRC\n");
+				exit(EXIT_FAILURE);
+			}
+
+			if(strncmp(line,"PING :",6) == 0)
+			{
+				sprintf(buf,"PO%s",&buf[2]);
+				write(irc_sockfd,buf,strlen(buf));
+				write_irc = 1;
+				continue;
+			}
+
+			sprintf(tmp," 001 %s :Welcome to the ",prefs.irc_nick);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
+				write(irc_sockfd,buf,strlen(buf));
+				write_irc = 1;
+				continue;
+			}
+
+			sprintf(tmp,"PRIVMSG %s :!np\r\n",prefs.irc_channel);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",prefs.irc_channel,current_song.artist,current_song.title,current_song.album);
+				write(irc_sockfd,buf,strlen(buf));
+				write_irc = 1;
+				continue;
+			}
 		}
 		else
 		{
