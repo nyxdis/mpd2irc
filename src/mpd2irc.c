@@ -342,9 +342,10 @@ int parser(const char *origin, char *msg)
 			sprintf(tmp,"PRIVMSG %s :!status\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
-				sprintf(buf,"PRIVMSG %s :Repeat: %d, Random: %d, Crossfade: %d, State: %s\n",
-					prefs.irc_channel,mpd_status.repeat,mpd_status.random,mpd_status.xfade,
-					mpd_status.state);
+				sprintf(buf,"PRIVMSG %s :Repeat: %s, Random: %s, Crossfade: %d sec, State: %s\n",
+					prefs.irc_channel,(mpd_status.repeat == 1 ? "on" : "off"),
+					(mpd_status.random == 1 ? "on" : "off"),
+					mpd_status.xfade,mpd_status.state);
 				write(irc_sockfd,buf,strlen(buf));
 				write_irc = 1;
 				continue;
