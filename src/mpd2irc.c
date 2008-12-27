@@ -21,6 +21,8 @@
 #include "config.h"
 #endif
 
+int cleanup(void);
+int irc_match(const char *line, const char *msg);
 int irc_say(const char *msg);
 int mpd_write(const char *msg);
 int parser(const char *origin, char *msg);
@@ -45,6 +47,8 @@ struct preferences {
 	char *mpd_server;
 	char *mpd_password;
 	int mpd_port;
+
+	char *die_password;
 } prefs;
 
 struct song_info {
@@ -98,6 +102,8 @@ int main(void)
 	prefs.mpd_server = strdup("localhost");
 	prefs.mpd_password = NULL;
 	prefs.mpd_port = 6600;
+
+	prefs.die_password = strdup("secret");
 
 	current_song.file = strdup("");
 
@@ -173,10 +179,7 @@ int main(void)
 		}
 	}
 
-	close(irc_sockfd);
-	close(mpd_sockfd);
-
-	exit(EXIT_SUCCESS);
+	cleanup();
 }
 
 int server_connect_unix(const char *path)
@@ -250,6 +253,11 @@ int parser(const char *origin, char *msg)
 		/* mpd events */
 		if(strncmp(origin,"mpd",3) == 0)
 		{
+			if(strncmp(line,"ACK ",4) == 0)
+			{
+				printf("MPD error: %s\n",&line[4]);
+				exit(EXIT_FAILURE);
+			}
 			if(strncmp(line,"OK MPD",6) == 0)
 			{
 				sscanf(line,"%*s %*s %d.%d.",&major,&minor);
@@ -323,22 +331,19 @@ int parser(const char *origin, char *msg)
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!next\r",prefs.irc_channel);
-			if(strstr(line,tmp))
+			if(irc_match(line,"next") == 0)
 			{
 				mpd_write("next");
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!prev\r",prefs.irc_channel);
-			if(strstr(line,tmp))
+			if(irc_match(line,"prev") == 0)
 			{
 				mpd_write("previous");
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!pause\r",prefs.irc_channel);
-			if(strstr(line,tmp))
+			if(irc_match(line,"pause") == 0)
 			{
 				if(strncmp(mpd_status.state,"play",4) == 0)
 					mpd_write("pause 1");
@@ -347,8 +352,7 @@ int parser(const char *origin, char *msg)
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!status\r",prefs.irc_channel);
-			if(strstr(line,tmp))
+			if(irc_match(line,"status") == 0)
 			{
 				sprintf(buf,"Repeat: %s, Random: %s, Crossfade: %d sec, State: %s",
 					(mpd_status.repeat == 1 ? "on" : "off"),
@@ -358,8 +362,7 @@ int parser(const char *origin, char *msg)
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!np\r",prefs.irc_channel);
-			if(strstr(line,tmp))
+			if(irc_match(line,"np") == 0)
 			{
 				sprintf(buf,"Now Playing: %s - %s (%s)",
 					current_song.artist,
@@ -368,21 +371,29 @@ int parser(const char *origin, char *msg)
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!version\r",prefs.irc_channel);
-			if(strstr(line,tmp))
+			if(irc_match(line,"version") == 0)
 			{
 				sprintf(buf,"This is %s",PACKAGE_STRING);
 				irc_say(buf);
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!announce\r",prefs.irc_channel);
-			if(strstr(line,tmp))
+			if(irc_match(line,"announce") == 0)
 			{
 				if(announce == 0) announce = 1;
 				else announce = 0;
 				sprintf(buf,"Announcements %sabled.",(announce == 0 ? "dis" : "en"));
 				irc_say(buf);
+				continue;
+			}
+
+			sprintf(tmp,"PRIVMSG %s :die %s\r",prefs.irc_nick,prefs.die_password);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"QUIT :Exiting\n");
+				write(irc_sockfd,buf,strlen(buf));
+				write(mpd_sockfd,"close\n",6);
+				cleanup();
 			}
 		}
 		else
@@ -411,6 +422,7 @@ void sighandler(int sig)
 	{
 		sprintf(buf,"QUIT :Caught signal: %d, exiting.\n",sig);
 		write(irc_sockfd,buf,strlen(buf));
+		cleanup();
 		exit(EXIT_FAILURE);
 	}
 }
@@ -431,4 +443,21 @@ int irc_say(const char *msg)
 	write(irc_sockfd,buf,strlen(buf));
 	write_irc = 1;
 	return 0;
+}
+
+int cleanup(void)
+{
+	close(irc_sockfd);
+	close(mpd_sockfd);
+	exit(EXIT_SUCCESS);
+}
+
+int irc_match(const char *line, const char *msg)
+{
+	char buf[256];
+
+	sprintf(buf,"PRIVMSG %s :!%s\r",prefs.irc_channel,msg);
+	if(strstr(line,buf))
+		return 0;
+	return 1;
 }
