@@ -1,0 +1,43 @@
+## mpd2irc example configuration
+##
+## Commented values are defaults
+## Strings have to be quoted using single or double quotes
+
+## MPD settings
+## server can be a hostname or UNIX domain socket
+
+#mpd {
+	#server = "localhost"
+	#password = ""
+	#port = 6600
+#}
+
+## IRC connection settings
+##
+## server and channel are required
+
+irc_connection {
+	server = ""
+	channel = ""
+	#nick = "mpd2irc"
+	#realname = "mpd2irc 0.0.1"
+	#username = ""
+}
+
+## IRC authentication (NYI)
+##
+## Authentication is disabled when authserv is empty.
+
+#irc_auth {
+	#authserv = ""
+	#cmd = "login"
+	#nick = ""
+	#password = ""
+#}
+
+## die password
+##
+## This password is used to kill the bot from IRC,
+## set it to something more secure.
+
+#die_password = "secret"
