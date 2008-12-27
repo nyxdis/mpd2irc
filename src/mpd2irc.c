@@ -119,7 +119,11 @@ int main(void)
 	};
 
 	cfg = cfg_init(opts,CFGF_NONE);
-	cfg_parse(cfg,"mpd2irc.conf");
+	sr = cfg_parse(cfg,"~/.mpd2irc.conf");
+	if(sr == CFG_FILE_ERROR)
+		sr = cfg_parse(cfg,"/etc/mpd2irc.conf");
+	if(sr == CFG_FILE_ERROR)
+		m2i_error("Unable to open configuration file");
 	cfg_mpd = cfg_getsec(cfg,"mpd");
 	cfg_irc_conn = cfg_getsec(cfg,"irc_connection");
 	cfg_irc_auth = cfg_getsec(cfg,"irc_auth");
