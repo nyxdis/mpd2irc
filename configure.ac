@@ -5,7 +5,7 @@ AC_PREREQ([2.59])
 AC_INIT([mpd2irc], [0.1.0], [angelos@unkreativ.org])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([dist-bzip2])
 
 # Checks for programs.
 AC_PROG_CC
