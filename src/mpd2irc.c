@@ -26,6 +26,7 @@ int server_connect_tcp(const char *host, int port);
 int server_connect(const char *host, int port);
 int parser(const char *origin, char *msg);
 void sighandler(int sig);
+int mpd_write(const char *msg);
 
 struct preferences {
 	char *irc_server;
@@ -256,17 +257,12 @@ int parser(const char *origin, char *msg)
 					fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
 					exit(EXIT_FAILURE);
 				}
-				write(mpd_sockfd,"status\n",7);
-				write(mpd_sockfd,"currentsong\n",12);
-				write(mpd_sockfd,"idle options player\n",20);
-				write_mpd = 1;
+				mpd_write("status\ncurrentsong");
 			}
 			else if(strncmp(line,"changed: player",15) == 0)
-			{
-				write(mpd_sockfd,"currentsong\n",12);
-				write(mpd_sockfd,"idle options player\n",20);
-				write_mpd = 1;
-			}
+				mpd_write("status\ncurrentsong");
+			else if(strncmp(line,"changed: options",16) == 0)
+				mpd_write("status\n");
 			else if(strncmp(line,"file: ",6) == 0)
 			{
 				if(strncmp(current_song.file,&line[6],strlen(&line[6])))
@@ -324,18 +320,24 @@ int parser(const char *origin, char *msg)
 			sprintf(tmp,"PRIVMSG %s :!next\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
-				sprintf(buf,"noidle\nnext\ncurrentsong\nidle\n");
-				write(mpd_sockfd,buf,strlen(buf));
-				write_mpd = 1;
+				mpd_write("next");
 				continue;
 			}
 
 			sprintf(tmp,"PRIVMSG %s :!prev\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
-				sprintf(buf,"noidle\nprevious\ncurrentsong\nidle\n");
-				write(mpd_sockfd,buf,strlen(buf));
-				write_mpd = 1;
+				mpd_write("previous");
+				continue;
+			}
+
+			sprintf(tmp,"PRIVMSG %s :!pause\r",prefs.irc_channel);
+			if(strstr(line,tmp))
+			{
+				if(strncmp(mpd_status.state,"play",4) == 0)
+					mpd_write("pause 1");
+				else
+					mpd_write("play");
 				continue;
 			}
 
@@ -354,7 +356,7 @@ int parser(const char *origin, char *msg)
 			sprintf(tmp,"PRIVMSG %s :!np\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
-				sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",
+				sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (%s)\n",
 					prefs.irc_channel,current_song.artist,
 					current_song.title,current_song.album);
 				write(irc_sockfd,buf,strlen(buf));
@@ -371,7 +373,7 @@ int parser(const char *origin, char *msg)
 
 	if(mpd_new_song == 1)
 	{
-		sprintf(buf,"PRIVMSG %s :New song: %s - %s (From %s)\n",
+		sprintf(buf,"PRIVMSG %s :New song: %s - %s (%s)\n",
 			prefs.irc_channel,current_song.artist,current_song.title,
 			current_song.album);
 		write(irc_sockfd,buf,strlen(buf));
@@ -392,4 +394,13 @@ void sighandler(int sig)
 		write(irc_sockfd,buf,strlen(buf));
 		exit(EXIT_FAILURE);
 	}
+}
+
+int mpd_write(const char *msg)
+{
+	char buf[256];
+	sprintf(buf,"noidle\n%s\nidle options player\n",msg);
+	write(mpd_sockfd,buf,strlen(buf));
+	write_mpd = 1;
+	return 0;
 }
