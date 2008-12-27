@@ -95,7 +95,7 @@ int main(void)
 	prefs.irc_authnick = strdup("");
 	prefs.irc_authpass = strdup("");
 
-	prefs.mpd_server = strdup("/var/lib/mpd/socket");
+	prefs.mpd_server = strdup("localhost");
 	prefs.mpd_password = NULL;
 	prefs.mpd_port = 6600;
 
@@ -258,6 +258,11 @@ int parser(const char *origin, char *msg)
 					fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
 					exit(EXIT_FAILURE);
 				}
+				if(prefs.mpd_password != NULL)
+				{
+					sprintf(buf,"password %s\n",prefs.mpd_password);
+					write(mpd_sockfd,buf,strlen(buf));
+				}
 				mpd_write("status\ncurrentsong");
 			}
 			else if(strncmp(line,"changed: player",15) == 0)
@@ -362,12 +367,21 @@ int parser(const char *origin, char *msg)
 				irc_say(buf);
 				continue;
 			}
+
+			sprintf(tmp,"PRIVMSG %s :!version\r",prefs.irc_channel);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"This is %s",PACKAGE_STRING);
+				irc_say(buf);
+				continue;
+			}
+
 			sprintf(tmp,"PRIVMSG %s :!announce\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
 				if(announce == 0) announce = 1;
 				else announce = 0;
-				sprintf(buf,"Announcing %sabled.",(announce == 0 ? "dis" : "en"));
+				sprintf(buf,"Announcements %sabled.",(announce == 0 ? "dis" : "en"));
 				irc_say(buf);
 			}
 		}
@@ -380,8 +394,8 @@ int parser(const char *origin, char *msg)
 
 	if(mpd_new_song == 1 && announce == 1)
 	{
-		sprintf(buf,"New song: %s - %s (%s)",
-			current_song.artist,current_song.title,current_song.album);
+		sprintf(buf,"New song: %s - %s (%s)",current_song.artist,
+			current_song.title,current_song.album);
 		irc_say(buf);
 	}
 	mpd_new_song = 0;
