@@ -278,7 +278,6 @@ int parser(const char *origin, char *msg)
 		{
 			if(strncmp(line,"ERROR :Closing Link",19) == 0)
 			{
-				printf("line: %s\n",line);
 				fprintf(stderr,"Disconnected from IRC\n");
 				exit(EXIT_FAILURE);
 			}
@@ -300,10 +299,12 @@ int parser(const char *origin, char *msg)
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :!np\r\n",prefs.irc_channel);
+			sprintf(tmp,"PRIVMSG %s :!np\r",prefs.irc_channel);
 			if(strstr(line,tmp))
 			{
-				sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",prefs.irc_channel,current_song.artist,current_song.title,current_song.album);
+				sprintf(buf,"PRIVMSG %s :Now Playing: %s - %s (From %s)\n",
+					prefs.irc_channel,current_song.artist,
+					current_song.title,current_song.album);
 				write(irc_sockfd,buf,strlen(buf));
 				write_irc = 1;
 				continue;
