@@ -8,6 +8,7 @@
 
 #include <fcntl.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,7 @@ int server_connect_unix(const char *path);
 int server_connect_tcp(const char *host, int port);
 int server_connect(const char *host, int port);
 int parser(const char *origin, char *msg);
+void sighandler(int sig);
 
 struct preferences {
 	char *irc_server;
@@ -62,10 +64,21 @@ unsigned short write_irc = 0, write_mpd = 0;
 
 int main(void)
 {
-	int sr;
 	char buf[1024];
-	struct timeval waitd;
 	fd_set read_flags, write_flags;
+	int sr;
+	struct sigaction sa;
+	struct timeval waitd;
+
+	/* Signal handler */
+	sa.sa_handler = sighandler;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_RESTART;
+	sigaction(SIGINT,&sa,NULL);
+	sigaction(SIGTERM,&sa,NULL);
+	sigaction(SIGUSR1,&sa,NULL);
+	sigaction(SIGUSR2,&sa,NULL);
+	sigaction(SIGHUP,&sa,NULL);
 
 	/* set default values */
 	prefs.irc_server = strdup("irc.dronf.org");
@@ -327,4 +340,17 @@ int parser(const char *origin, char *msg)
 		mpd_new_song = 0;
 	}
 	return 0;
+}
+
+void sighandler(int sig)
+{
+	char buf[256];
+	if(sig == SIGUSR1 || sig == SIGUSR2 || sig == SIGHUP)
+		printf("Caught signal %d, ignored.\n",sig);
+	else
+	{
+		sprintf(buf,"QUIT :Caught signal: %d, exiting.\n",sig);
+		write(irc_sockfd,buf,strlen(buf));
+		exit(EXIT_FAILURE);
+	}
 }
