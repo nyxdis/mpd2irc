@@ -31,6 +31,7 @@ int server_connect_tcp(const char *host, int port);
 int server_connect_unix(const char *path);
 void sighandler(int sig);
 
+/* preferences parsed from the config file */
 struct preferences {
 	char *irc_server;
 	char *irc_nick;
@@ -51,6 +52,7 @@ struct preferences {
 	char *die_password;
 } prefs;
 
+/* information about the song currently played */
 struct song_info {
 	char *artist;
 	char *title;
@@ -58,6 +60,7 @@ struct song_info {
 	char *file;
 } current_song;
 
+/* current mpd status */
 struct mpd_status {
 	short repeat;
 	short random;
@@ -107,6 +110,7 @@ int main(void)
 
 	current_song.file = strdup("");
 
+	/* connect to IRC and MPD */
 	mpd_sockfd = server_connect(prefs.mpd_server, prefs.mpd_port);
 	if(mpd_sockfd < 0)
 	{
@@ -120,6 +124,7 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 
+	/* IRC protocol introduction */
 	write_irc = 1;
 	sprintf(buf,"NICK %s\n",prefs.irc_nick);
 	write(irc_sockfd,buf,strlen(buf));
@@ -182,6 +187,7 @@ int main(void)
 	cleanup();
 }
 
+/* Connecting to a UNIX domain socket */
 int server_connect_unix(const char *path)
 {
 	int sockfd;
@@ -197,10 +203,11 @@ int server_connect_unix(const char *path)
 	len = strlen(addr.sun_path) + sizeof(addr.sun_family);
 	if(connect(sockfd,(struct sockaddr *)&addr,len) < 0)
 		return -1;
-	
+
 	return sockfd;
 }
 
+/* Connecting to a TCP socket */
 int server_connect_tcp(const char *host, int port)
 {
 	int sockfd;
@@ -211,7 +218,7 @@ int server_connect_tcp(const char *host, int port)
 	sockfd = socket(AF_INET,SOCK_STREAM,0);
 	if(sockfd < 0)
 		return -1;
-	
+
 	he = gethostbyname(host);
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(port);
@@ -223,6 +230,7 @@ int server_connect_tcp(const char *host, int port)
 	return sockfd;
 }
 
+/* wrapper around server_connect_tcp and server_connect_unix */
 int server_connect(const char *host, int port)
 {
 	int sockfd;
@@ -241,6 +249,7 @@ int server_connect(const char *host, int port)
 	return sockfd;
 }
 
+/* parser that receives all the mpd/irc data */
 int parser(const char *origin, char *msg)
 {
 	unsigned int major, minor;
@@ -253,30 +262,40 @@ int parser(const char *origin, char *msg)
 		/* mpd events */
 		if(strncmp(origin,"mpd",3) == 0)
 		{
+			/* mpd error */
 			if(strncmp(line,"ACK ",4) == 0)
 			{
 				printf("MPD error: %s\n",&line[4]);
 				exit(EXIT_FAILURE);
 			}
+
+			/* connected to mpd */
 			if(strncmp(line,"OK MPD",6) == 0)
 			{
 				sscanf(line,"%*s %*s %d.%d.",&major,&minor);
 				if(major == 0 && minor < 14)
 				{
-					fprintf(stderr,"Your MPD is too old, you need at least MPD 0.14\n");
+					fprintf(stderr,"Your MPD is too old, "
+						"you need at least MPD 0.14\n");
 					exit(EXIT_FAILURE);
 				}
+				/* authentication */
 				if(prefs.mpd_password != NULL)
 				{
-					sprintf(buf,"password %s\n",prefs.mpd_password);
+					sprintf(buf,"password %s\n",
+					prefs.mpd_password);
 					write(mpd_sockfd,buf,strlen(buf));
 				}
 				mpd_write("status\ncurrentsong");
 			}
+
+			/* idle events */
 			else if(strncmp(line,"changed: player",15) == 0)
 				mpd_write("status\ncurrentsong");
 			else if(strncmp(line,"changed: options",16) == 0)
 				mpd_write("status\n");
+
+			/* song change */
 			else if(strncmp(line,"file: ",6) == 0)
 			{
 				if(strncmp(current_song.file,&line[6],strlen(&line[6])))
@@ -295,6 +314,7 @@ int parser(const char *origin, char *msg)
 					current_song.album = strdup(&line[7]);
 			}
 
+			/* status change */
 			if(strncmp(line,"repeat: ",8) == 0)
 				sscanf(line,"%*s %hd",&mpd_status.repeat);
 			if(strncmp(line,"random: ",8) == 0)
@@ -308,6 +328,7 @@ int parser(const char *origin, char *msg)
 		/* IRC events */
 		else if(strncmp(origin,"irc",3) == 0)
 		{
+			/* IRC error */
 			if(strncmp(line,"ERROR :Closing Link",19) == 0)
 			{
 				fprintf(stderr,"Disconnected from IRC\n");
@@ -354,7 +375,8 @@ int parser(const char *origin, char *msg)
 
 			if(irc_match(line,"status") == 0)
 			{
-				sprintf(buf,"Repeat: %s, Random: %s, Crossfade: %d sec, State: %s",
+				sprintf(buf,"Repeat: %s, Random: %s, "
+					"Crossfade: %d sec, State: %s",
 					(mpd_status.repeat == 1 ? "on" : "off"),
 					(mpd_status.random == 1 ? "on" : "off"),
 					mpd_status.xfade,mpd_status.state);
@@ -382,12 +404,14 @@ int parser(const char *origin, char *msg)
 			{
 				if(announce == 0) announce = 1;
 				else announce = 0;
-				sprintf(buf,"Announcements %sabled.",(announce == 0 ? "dis" : "en"));
+				sprintf(buf,"Announcements %sabled.",
+					(announce == 0 ? "dis" : "en"));
 				irc_say(buf);
 				continue;
 			}
 
-			sprintf(tmp,"PRIVMSG %s :die %s\r",prefs.irc_nick,prefs.die_password);
+			sprintf(tmp,"PRIVMSG %s :die %s\r",prefs.irc_nick,
+				prefs.die_password);
 			if(strstr(line,tmp))
 			{
 				sprintf(buf,"QUIT :Exiting\n");
@@ -398,7 +422,8 @@ int parser(const char *origin, char *msg)
 		}
 		else
 		{
-			fprintf(stderr,"Error while parsing: Unknown origin '%s'\n",origin);
+			fprintf(stderr,"Error while parsing: "
+				"Unknown origin '%s'\n",origin);
 			exit(EXIT_FAILURE);
 		}
 	} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
@@ -423,7 +448,6 @@ void sighandler(int sig)
 		sprintf(buf,"QUIT :Caught signal: %d, exiting.\n",sig);
 		write(irc_sockfd,buf,strlen(buf));
 		cleanup();
-		exit(EXIT_FAILURE);
 	}
 }
 
