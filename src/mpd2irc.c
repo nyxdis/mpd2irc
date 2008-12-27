@@ -56,7 +56,7 @@ struct mpd_status {
 	short repeat;
 	short random;
 	short xfade;
-	enum { PLAY, STOP, PAUSE } state;
+	char *state;
 } mpd_status;
 
 int irc_sockfd, mpd_sockfd;
@@ -284,6 +284,15 @@ int parser(const char *origin, char *msg)
 				else if(strncmp(line,"Album: ",7) == 0)
 					current_song.album = strdup(&line[7]);
 			}
+
+			if(strncmp(line,"repeat: ",8) == 0)
+				sscanf(line,"%*s %hd",&mpd_status.repeat);
+			if(strncmp(line,"random: ",8) == 0)
+				sscanf(line,"%*s %hd",&mpd_status.random);
+			if(strncmp(line,"xfade: ",7) == 0)
+				sscanf(line,"%*s %hd",&mpd_status.xfade);
+			if(strncmp(line,"state: ",7) == 0)
+				mpd_status.state = strdup(&line[7]);
 		}
 
 		/* IRC events */
@@ -307,6 +316,35 @@ int parser(const char *origin, char *msg)
 			if(strstr(line,tmp))
 			{
 				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
+				write(irc_sockfd,buf,strlen(buf));
+				write_irc = 1;
+				continue;
+			}
+
+			sprintf(tmp,"PRIVMSG %s :!next\r",prefs.irc_channel);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"noidle\nnext\ncurrentsong\nidle\n");
+				write(mpd_sockfd,buf,strlen(buf));
+				write_mpd = 1;
+				continue;
+			}
+
+			sprintf(tmp,"PRIVMSG %s :!prev\r",prefs.irc_channel);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"noidle\nprevious\ncurrentsong\nidle\n");
+				write(mpd_sockfd,buf,strlen(buf));
+				write_mpd = 1;
+				continue;
+			}
+
+			sprintf(tmp,"PRIVMSG %s :!status\r",prefs.irc_channel);
+			if(strstr(line,tmp))
+			{
+				sprintf(buf,"PRIVMSG %s :Repeat: %d, Random: %d, Crossfade: %d, State: %s\n",
+					prefs.irc_channel,mpd_status.repeat,mpd_status.random,mpd_status.xfade,
+					mpd_status.state);
 				write(irc_sockfd,buf,strlen(buf));
 				write_irc = 1;
 				continue;
