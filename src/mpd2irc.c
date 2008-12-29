@@ -72,13 +72,14 @@ struct mpd_status {
 } mpd_status;
 
 int irc_sockfd, mpd_sockfd;
-unsigned short write_irc = 0, write_mpd = 0, announce = 1;
+unsigned short announce = 1;
+cfg_t *cfg;
 
 int main(void)
 {
-	cfg_t *cfg, *cfg_mpd, *cfg_irc_conn, *cfg_irc_auth;
+	cfg_t *cfg_mpd, *cfg_irc_conn, *cfg_irc_auth;
 	char buf[1024];
-	fd_set read_flags, write_flags;
+	fd_set read_flags;
 	int sr;
 	struct sigaction sa;
 	struct timeval waitd;
@@ -173,6 +174,7 @@ int main(void)
 	if(mpd_sockfd < 0)
 	{
 		perror("MPD");
+		cleanup();
 		exit(EXIT_FAILURE);
 	}
 	irc_sockfd = server_connect(prefs.irc_server, prefs.irc_port);
@@ -183,7 +185,6 @@ int main(void)
 	}
 
 	/* IRC protocol introduction */
-	write_irc = 1;
 	if(strlen(prefs.irc_password) > 0)
 	{
 		sprintf(buf,"PASS %s\n",prefs.irc_password);
@@ -199,30 +200,15 @@ int main(void)
 		waitd.tv_sec = 1;
 		waitd.tv_usec = 0;
 		FD_ZERO(&read_flags);
-		FD_ZERO(&write_flags);
 		FD_SET(mpd_sockfd,&read_flags);
 		FD_SET(irc_sockfd,&read_flags);
-		if(write_irc > 0) FD_SET(irc_sockfd,&write_flags);
-		if(write_mpd > 0) FD_SET(mpd_sockfd,&write_flags);
 		if(irc_sockfd > mpd_sockfd)
 			sr = irc_sockfd;
 		else
 			sr = mpd_sockfd;
 
-		if(select(sr+1,&read_flags,&write_flags,NULL,&waitd) < 0)
+		if(select(sr+1,&read_flags,NULL,NULL,&waitd) < 0)
 			continue;
-
-		if(FD_ISSET(irc_sockfd,&write_flags))
-		{
-			FD_CLR(irc_sockfd,&write_flags);
-			write_irc = 0;
-		}
-
-		if(FD_ISSET(mpd_sockfd,&write_flags))
-		{
-			FD_CLR(mpd_sockfd,&write_flags);
-			write_mpd = 0;
-		}
 
 		if(FD_ISSET(mpd_sockfd,&read_flags))
 		{
@@ -335,7 +321,7 @@ int parser(const char *origin, char *msg)
 			/* connected to mpd */
 			if(strncmp(line,"OK MPD",6) == 0)
 			{
-				sscanf(line,"%*s %*s %d.%d.",&major,&minor);
+				sscanf(line,"%*s %*s %u.%u.",&major,&minor);
 				if(major == 0 && minor < 14)
 					m2i_error("Your MPD is too old, "
 						"you need at least MPD 0.14.");
@@ -397,7 +383,6 @@ int parser(const char *origin, char *msg)
 			{
 				sprintf(buf,"PO%s",&buf[2]);
 				write(irc_sockfd,buf,strlen(buf));
-				write_irc = 1;
 			}
 
 			else if(irc_match(line,"next") == 0)
@@ -507,7 +492,6 @@ int parser(const char *origin, char *msg)
 				}
 				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
 				write(irc_sockfd,buf,strlen(buf));
-				write_irc = 1;
 				continue;
 			}
 		}
@@ -547,7 +531,6 @@ int mpd_write(const char *msg)
 	char buf[256];
 	sprintf(buf,"noidle\n%s\nidle options player\n",msg);
 	write(mpd_sockfd,buf,strlen(buf));
-	write_mpd = 1;
 	return 0;
 }
 
@@ -556,12 +539,17 @@ int irc_say(const char *msg)
 	char buf[256];
 	sprintf(buf,"PRIVMSG %s :%s\n",prefs.irc_channel,msg);
 	write(irc_sockfd,buf,strlen(buf));
-	write_irc = 1;
 	return 0;
 }
 
 int cleanup(void)
 {
+	cfg_free(cfg);
+	free(current_song.file);
+	free(current_song.artist);
+	free(current_song.title);
+	free(current_song.album);
+	free(mpd_status.state);
 	close(irc_sockfd);
 	close(mpd_sockfd);
 	exit(EXIT_SUCCESS);
