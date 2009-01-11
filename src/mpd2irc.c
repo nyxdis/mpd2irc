@@ -34,7 +34,7 @@ int server_connect_unix(const char *path);
 void sighandler(int sig);
 
 /* preferences parsed from the config file */
-struct preferences {
+static struct preferences {
 	char *irc_server;
 	char *irc_password;
 	char *irc_nick;
@@ -56,7 +56,7 @@ struct preferences {
 } prefs;
 
 /* information about the song currently played */
-struct song_info {
+static struct song_info {
 	char *artist;
 	char *title;
 	char *album;
@@ -64,16 +64,16 @@ struct song_info {
 } current_song;
 
 /* current mpd status */
-struct mpd_status {
+static struct mpd_status {
 	short repeat;
 	short random;
 	short xfade;
 	char *state;
 } mpd_status;
 
-int irc_sockfd, mpd_sockfd;
-unsigned short announce = 1;
-cfg_t *cfg;
+static int irc_sockfd, mpd_sockfd;
+static unsigned short announce = 1;
+static cfg_t *cfg;
 
 int main(void)
 {
@@ -87,18 +87,18 @@ int main(void)
 	/* available options */
 	cfg_opt_t mpd_opts[] = {
 		CFG_STR("server","localhost",CFGF_NONE),
-		CFG_STR("password","",CFGF_NONE),
+		CFG_STR("password",NULL,CFGF_NONE),
 		CFG_INT("port",6600,CFGF_NONE),
 		CFG_END()
 	};
 
 	cfg_opt_t irc_conn_opts[] = {
-		CFG_STR("server","",CFGF_NONE),
-		CFG_STR("password","",CFGF_NONE),
+		CFG_STR("server",NULL,CFGF_NONE),
+		CFG_STR("password",NULL,CFGF_NONE),
 		CFG_STR("nick",PACKAGE,CFGF_NONE),
 		CFG_STR("realname",PACKAGE_STRING,CFGF_NONE),
 		CFG_STR("username",PACKAGE_NAME,CFGF_NONE),
-		CFG_STR("channel","",CFGF_NONE),
+		CFG_STR("channel",NULL,CFGF_NONE),
 		CFG_INT("port",6667,CFGF_NONE),
 		CFG_END()
 	};
@@ -106,8 +106,8 @@ int main(void)
 	cfg_opt_t irc_auth_opts[] = {
 		CFG_STR("authserv","nickserv",CFGF_NONE),
 		CFG_STR("cmd","identify",CFGF_NONE),
-		CFG_STR("nick","",CFGF_NONE),
-		CFG_STR("password","",CFGF_NONE),
+		CFG_STR("nick",NULL,CFGF_NONE),
+		CFG_STR("password",NULL,CFGF_NONE),
 		CFG_END()
 	};
 
@@ -162,9 +162,9 @@ int main(void)
 	current_song.file = strdup("");
 
 	/* check required settings */
-	if(strlen(prefs.irc_server) == 0)
+	if(prefs.irc_server == NULL)
 		m2i_error("IRC server undefined");
-	if(strlen(prefs.irc_channel) == 0)
+	if(prefs.irc_channel == NULL)
 		m2i_error("IRC channel undefined");
 	if(strncmp(prefs.die_password,"secret",6) == 0)
 		printf("Warning: Weak die password\n");
@@ -185,7 +185,7 @@ int main(void)
 	}
 
 	/* IRC protocol introduction */
-	if(strlen(prefs.irc_password) > 0)
+	if(prefs.irc_password != NULL)
 	{
 		sprintf(buf,"PASS %s\n",prefs.irc_password);
 		write(irc_sockfd,buf,strlen(buf));
@@ -327,7 +327,7 @@ int parser(const char *origin, char *msg)
 						"you need at least MPD 0.14.");
 
 				/* authentication */
-				if(strlen(prefs.mpd_password) > 0)
+				if(prefs.mpd_password != NULL)
 				{
 					sprintf(buf,"password %s\n",
 					prefs.mpd_password);
