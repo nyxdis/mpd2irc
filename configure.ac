@@ -8,7 +8,7 @@ AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([dist-bzip2])
 
 # Checks for programs.
-AC_PROG_CC_C99
+AC_PROG_CC
 
 # Checks for libraries.
 PKG_CHECK_MODULES([confuse], [libconfuse])
