@@ -7,6 +7,7 @@
 
 
 #include <confuse.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <signal.h>
@@ -180,7 +181,7 @@ int main(void)
 	irc_sockfd = server_connect(prefs.irc_server, prefs.irc_port);
 	if(irc_sockfd < 0)
 	{
-		perror("IRC");
+		if(errno > 0) perror("IRC");
 		exit(EXIT_FAILURE);
 	}
 
@@ -195,7 +196,7 @@ int main(void)
 	sprintf(buf,"USER %s 0 * :%s\n",prefs.irc_username,prefs.irc_realname);
 	write(irc_sockfd,buf,strlen(buf));
 
-	while(1)
+	for(;;)
 	{
 		waitd.tv_sec = 1;
 		waitd.tv_usec = 0;
@@ -253,29 +254,67 @@ int server_connect_unix(const char *path)
 	if(connect(sockfd,(struct sockaddr *)&addr,len) < 0)
 		return -1;
 
+	if(fcntl(sockfd,F_SETFL,fcntl(sockfd,F_GETFL,0) | O_NONBLOCK) < 0)
+		return -1;
+
 	return sockfd;
 }
 
 /* Connecting to a TCP socket */
 int server_connect_tcp(const char *host, int port)
 {
-	int sockfd;
-	struct sockaddr_in addr;
-	struct hostent *he;
-	unsigned int len;
+	char service[5];
+	fd_set write_flags;
+	int sockfd = 0, valopt, ret;
+	socklen_t lon;
+	struct addrinfo hints, *result, *rp;
+	struct timeval timeout;
 
-	sockfd = socket(AF_INET,SOCK_STREAM,0);
-	if(sockfd < 0)
+	memset(&hints,0,sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	sprintf(service,"%d",port);
+
+	if((ret = getaddrinfo(host,service,&hints,&result)) != 0) {
+		fprintf(stderr,"Failed to get address information: %s\n",gai_strerror(ret));
+		return -1;
+	}
+
+	for(rp = result;rp != NULL;rp = rp->ai_next) {
+		if((sockfd = socket(rp->ai_family,rp->ai_socktype,rp->ai_protocol)) >= 0)
+			break;
+		close(sockfd);
+	}
+
+	if(fcntl(sockfd,F_SETFL,fcntl(sockfd,F_GETFL,0) | O_NONBLOCK) < 0)
 		return -1;
 
-	he = gethostbyname(host);
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	memcpy((char *)&addr.sin_addr.s_addr,(char *)he->h_addr,he->h_length);
-	len = sizeof(addr);
-	if(connect(sockfd,(struct sockaddr *)&addr,len) < 0)
-		return -1;
+	if(connect(sockfd,rp->ai_addr,rp->ai_addrlen) < 0) {
+		if(errno == EINPROGRESS) {
+			timeout.tv_sec = 15;
+			timeout.tv_usec = 0;
 
+			FD_ZERO(&write_flags);
+			FD_SET(sockfd,&write_flags);
+			if(select(sockfd+1,NULL,&write_flags,NULL,&timeout) > 0) {
+				lon = sizeof(int);
+				getsockopt(sockfd,SOL_SOCKET,SO_ERROR,
+					(void*)(&valopt),&lon);
+				if(valopt) {
+					errno = valopt;
+					return -1;
+				}
+			}
+			else {
+				errno = ETIMEDOUT;
+				return -1;
+			}
+		}
+		else
+			return -1;
+	}
+
+	errno = 0;
 	return sockfd;
 }
 
@@ -290,9 +329,6 @@ int server_connect(const char *host, int port)
 		sockfd = server_connect_tcp(host, port);
 
 	if(sockfd < 0)
-		return -1;
-
-	if(fcntl(sockfd,F_SETFL,fcntl(sockfd,F_GETFL,0) | O_NONBLOCK) < 0)
 		return -1;
 
 	return sockfd;
