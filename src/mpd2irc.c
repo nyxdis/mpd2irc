@@ -168,7 +168,7 @@ int main(void)
 	if(prefs.irc_channel == NULL)
 		m2i_error("IRC channel undefined");
 	if(strncmp(prefs.die_password,"secret",6) == 0)
-		printf("Warning: Weak die password\n");
+		puts("Warning: Weak die password");
 
 	/* connect to IRC and MPD */
 	mpd_sockfd = server_connect(prefs.mpd_server, prefs.mpd_port);
