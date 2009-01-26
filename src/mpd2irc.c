@@ -174,7 +174,7 @@ int main(void)
 	mpd_sockfd = server_connect(prefs.mpd_server, prefs.mpd_port);
 	if(mpd_sockfd < 0)
 	{
-		perror("MPD");
+		if(errno > 0) perror("MPD");
 		cleanup();
 		exit(EXIT_FAILURE);
 	}
