@@ -214,7 +214,7 @@ int main(void)
 		{
 			FD_CLR(mpd_sockfd,&read_flags);
 			memset(buf,0,sizeof(buf));
-			if(read(mpd_sockfd,buf,sizeof(buf)) > 0)
+			if(read(mpd_sockfd,buf,sizeof(buf)-1) > 0)
 				parser("mpd",buf);
 		}
 
@@ -222,7 +222,7 @@ int main(void)
 		{
 			FD_CLR(irc_sockfd,&read_flags);
 			memset(buf,0,sizeof(buf));
-			if(read(irc_sockfd,buf,sizeof(buf)) > 0)
+			if(read(irc_sockfd,buf,sizeof(buf)-1) > 0)
 				parser("irc",buf);
 		}
 	}
