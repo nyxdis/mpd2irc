@@ -81,7 +81,7 @@ int main(void)
 	cfg_t *cfg_mpd, *cfg_irc_conn, *cfg_irc_auth;
 	char buf[1024];
 	fd_set read_flags;
-	int sr;
+	int sockfd;
 	struct sigaction sa;
 	struct timeval waitd;
 
@@ -121,11 +121,10 @@ int main(void)
 	};
 
 	cfg = cfg_init(opts,CFGF_NONE);
-	sr = cfg_parse(cfg,"~/.mpd2irc.conf");
-	if(sr == CFG_FILE_ERROR)
-		sr = cfg_parse(cfg,"/etc/mpd2irc.conf");
-	if(sr == CFG_FILE_ERROR)
-		m2i_error("Unable to open configuration file");
+	if(cfg_parse(cfg,"~/.mpd2irc.conf") == CFG_FILE_ERROR) {
+		if(cfg_parse(cfg,"/etc/mpd2irc.conf") == CFG_FILE_ERROR)
+			m2i_error("Unable to open configuration file");
+	}
 	cfg_mpd = cfg_getsec(cfg,"mpd");
 	cfg_irc_conn = cfg_getsec(cfg,"irc_connection");
 	cfg_irc_auth = cfg_getsec(cfg,"irc_auth");
@@ -204,33 +203,27 @@ int main(void)
 		FD_SET(mpd_sockfd,&read_flags);
 		FD_SET(irc_sockfd,&read_flags);
 		if(irc_sockfd > mpd_sockfd)
-			sr = irc_sockfd;
+			sockfd = irc_sockfd;
 		else
-			sr = mpd_sockfd;
+			sockfd = mpd_sockfd;
 
-		if(select(sr+1,&read_flags,NULL,NULL,&waitd) < 0)
+		if(select(sockfd+1,&read_flags,NULL,NULL,&waitd) < 0)
 			continue;
 
 		if(FD_ISSET(mpd_sockfd,&read_flags))
 		{
 			FD_CLR(mpd_sockfd,&read_flags);
-			sr = read(mpd_sockfd,buf,sizeof(buf));
-			buf[sr] = '\0';
-			if(sr > 0)
-			{
+			memset(buf,0,sizeof(buf));
+			if(read(mpd_sockfd,buf,sizeof(buf)) > 0)
 				parser("mpd",buf);
-			}
 		}
 
 		if(FD_ISSET(irc_sockfd,&read_flags))
 		{
 			FD_CLR(irc_sockfd,&read_flags);
-			sr = read(irc_sockfd,buf,sizeof(buf));
-			buf[sr] = '\0';
-			if(sr > 0)
-			{
+			memset(buf,0,sizeof(buf));
+			if(read(irc_sockfd,buf,sizeof(buf)) > 0)
 				parser("irc",buf);
-			}
 		}
 	}
 
