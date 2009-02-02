@@ -188,12 +188,12 @@ int main(void)
 	if(prefs.irc_password != NULL)
 	{
 		sprintf(buf,"PASS %s\n",prefs.irc_password);
-		write(irc_sockfd,buf,strlen(buf));
+		if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 	}
 	sprintf(buf,"NICK %s\n",prefs.irc_nick);
-	write(irc_sockfd,buf,strlen(buf));
+	if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 	sprintf(buf,"USER %s 0 * :%s\n",prefs.irc_username,prefs.irc_realname);
-	write(irc_sockfd,buf,strlen(buf));
+	if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 
 	for(;;)
 	{
@@ -360,7 +360,7 @@ int parser(const char *origin, char *msg)
 				{
 					sprintf(buf,"password %s\n",
 					prefs.mpd_password);
-					write(mpd_sockfd,buf,strlen(buf));
+					if(write(mpd_sockfd,buf,strlen(buf)) < 0) perror("MPD: write");
 				}
 				mpd_write("status\ncurrentsong");
 			}
@@ -411,7 +411,7 @@ int parser(const char *origin, char *msg)
 			else if(strncmp(line,"PING :",6) == 0)
 			{
 				sprintf(buf,"PO%s",&buf[2]);
-				write(irc_sockfd,buf,strlen(buf));
+				if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 			}
 
 			else if(irc_match(line,"next") == 0)
@@ -501,8 +501,8 @@ int parser(const char *origin, char *msg)
 			if(strstr(line,tmp))
 			{
 				sprintf(buf,"QUIT :Exiting\n");
-				write(irc_sockfd,buf,strlen(buf));
-				write(mpd_sockfd,"close\n",6);
+				if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
+				if(write(mpd_sockfd,"close\n",6) < 0) perror("MPD: write");
 				cleanup();
 			}
 
@@ -517,10 +517,10 @@ int parser(const char *origin, char *msg)
 						prefs.irc_authcmd,
 						prefs.irc_authnick,
 						prefs.irc_authpass);
-					write(irc_sockfd,buf,strlen(buf));
+					if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 				}
 				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
-				write(irc_sockfd,buf,strlen(buf));
+				if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 				continue;
 			}
 		}
@@ -550,7 +550,7 @@ void sighandler(int sig)
 	else
 	{
 		sprintf(buf,"QUIT :Caught signal: %d, exiting.\n",sig);
-		write(irc_sockfd,buf,strlen(buf));
+		if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 		cleanup();
 	}
 }
@@ -559,7 +559,7 @@ int mpd_write(const char *msg)
 {
 	char buf[256];
 	sprintf(buf,"noidle\n%s\nidle options player\n",msg);
-	write(mpd_sockfd,buf,strlen(buf));
+	if(write(mpd_sockfd,buf,strlen(buf)) < 0) perror("MPD: write");
 	return 0;
 }
 
@@ -567,7 +567,7 @@ int irc_say(const char *msg)
 {
 	char buf[256];
 	sprintf(buf,"PRIVMSG %s :%s\n",prefs.irc_channel,msg);
-	write(irc_sockfd,buf,strlen(buf));
+	if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 	return 0;
 }
 
