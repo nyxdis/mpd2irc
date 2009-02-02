@@ -28,7 +28,7 @@ int irc_match(const char *line, const char *msg);
 int irc_say(const char *msg);
 int m2i_error(const char *msg);
 int mpd_write(const char *msg);
-int parser(const char *origin, char *msg);
+int m2i_parser(const char *origin, char *msg);
 int server_connect(const char *host, int port);
 int server_connect_tcp(const char *host, int port);
 int server_connect_unix(const char *path);
@@ -88,18 +88,18 @@ int main(void)
 	/* available options */
 	cfg_opt_t mpd_opts[] = {
 		CFG_STR("server","localhost",CFGF_NONE),
-		CFG_STR("password",NULL,CFGF_NONE),
+		CFG_STR("password","",CFGF_NONE),
 		CFG_INT("port",6600,CFGF_NONE),
 		CFG_END()
 	};
 
 	cfg_opt_t irc_conn_opts[] = {
-		CFG_STR("server",NULL,CFGF_NONE),
-		CFG_STR("password",NULL,CFGF_NONE),
+		CFG_STR("server","",CFGF_NONE),
+		CFG_STR("password","",CFGF_NONE),
 		CFG_STR("nick",PACKAGE,CFGF_NONE),
 		CFG_STR("realname",PACKAGE_STRING,CFGF_NONE),
 		CFG_STR("username",PACKAGE_NAME,CFGF_NONE),
-		CFG_STR("channel",NULL,CFGF_NONE),
+		CFG_STR("channel","",CFGF_NONE),
 		CFG_INT("port",6667,CFGF_NONE),
 		CFG_END()
 	};
@@ -107,8 +107,8 @@ int main(void)
 	cfg_opt_t irc_auth_opts[] = {
 		CFG_STR("authserv","nickserv",CFGF_NONE),
 		CFG_STR("cmd","identify",CFGF_NONE),
-		CFG_STR("nick",NULL,CFGF_NONE),
-		CFG_STR("password",NULL,CFGF_NONE),
+		CFG_STR("nick","",CFGF_NONE),
+		CFG_STR("password","",CFGF_NONE),
 		CFG_END()
 	};
 
@@ -121,7 +121,8 @@ int main(void)
 	};
 
 	cfg = cfg_init(opts,CFGF_NONE);
-	if(cfg_parse(cfg,"~/.mpd2irc.conf") == CFG_FILE_ERROR) {
+	sprintf(buf,"%s/.mpd2irc.conf",getenv("HOME"));
+	if(cfg_parse(cfg,buf) == CFG_FILE_ERROR) {
 		if(cfg_parse(cfg,"/etc/mpd2irc.conf") == CFG_FILE_ERROR)
 			m2i_error("Unable to open configuration file");
 	}
@@ -140,31 +141,33 @@ int main(void)
 	sigaction(SIGHUP,&sa,NULL);
 
 	/* set settings parsed from config file */
-	prefs.irc_server = cfg_getstr(cfg_irc_conn,"server");
-	prefs.irc_password = cfg_getstr(cfg_irc_conn,"password");
-	prefs.irc_nick = cfg_getstr(cfg_irc_conn,"nick");
-	prefs.irc_realname = cfg_getstr(cfg_irc_conn,"realname");
-	prefs.irc_username = cfg_getstr(cfg_irc_conn,"username");
-	prefs.irc_channel = cfg_getstr(cfg_irc_conn,"channel");
+	prefs.irc_server = strdup(cfg_getstr(cfg_irc_conn,"server"));
+	prefs.irc_password = strdup(cfg_getstr(cfg_irc_conn,"password"));
+	prefs.irc_nick = strdup(cfg_getstr(cfg_irc_conn,"nick"));
+	prefs.irc_realname = strdup(cfg_getstr(cfg_irc_conn,"realname"));
+	prefs.irc_username = strdup(cfg_getstr(cfg_irc_conn,"username"));
+	prefs.irc_channel = strdup(cfg_getstr(cfg_irc_conn,"channel"));
 	prefs.irc_port = cfg_getint(cfg_irc_conn,"port");
 
-	prefs.irc_authserv = cfg_getstr(cfg_irc_auth,"authserv");
-	prefs.irc_authcmd = cfg_getstr(cfg_irc_auth,"cmd");
-	prefs.irc_authnick = cfg_getstr(cfg_irc_auth,"nick");
-	prefs.irc_authpass = cfg_getstr(cfg_irc_auth,"password");
+	prefs.irc_authserv = strdup(cfg_getstr(cfg_irc_auth,"authserv"));
+	prefs.irc_authcmd = strdup(cfg_getstr(cfg_irc_auth,"cmd"));
+	prefs.irc_authnick = strdup(cfg_getstr(cfg_irc_auth,"nick"));
+	prefs.irc_authpass = strdup(cfg_getstr(cfg_irc_auth,"password"));
 
-	prefs.mpd_server = cfg_getstr(cfg_mpd,"server");
-	prefs.mpd_password = cfg_getstr(cfg_mpd,"password");
+	prefs.mpd_server = strdup(cfg_getstr(cfg_mpd,"server"));
+	prefs.mpd_password = strdup(cfg_getstr(cfg_mpd,"password"));
 	prefs.mpd_port = cfg_getint(cfg_mpd,"port");
 
-	prefs.die_password = cfg_getstr(cfg,"die_password");
+	prefs.die_password = strdup(cfg_getstr(cfg,"die_password"));
+
+	cfg_free(cfg);
 
 	current_song.file = strdup("");
 
 	/* check required settings */
-	if(prefs.irc_server == NULL)
+	if(strlen(prefs.irc_server) == 0)
 		m2i_error("IRC server undefined");
-	if(prefs.irc_channel == NULL)
+	if(strlen(prefs.irc_channel) == 0)
 		m2i_error("IRC channel undefined");
 	if(strncmp(prefs.die_password,"secret",6) == 0)
 		puts("Warning: Weak die password");
@@ -177,23 +180,27 @@ int main(void)
 		cleanup();
 		exit(EXIT_FAILURE);
 	}
+	free(prefs.mpd_server);
 	irc_sockfd = server_connect(prefs.irc_server, prefs.irc_port);
 	if(irc_sockfd < 0)
 	{
 		if(errno > 0) perror("IRC");
 		exit(EXIT_FAILURE);
 	}
+	free(prefs.irc_server);
 
 	/* IRC protocol introduction */
-	if(prefs.irc_password != NULL)
+	if(strlen(prefs.irc_password) > 0)
 	{
 		sprintf(buf,"PASS %s\n",prefs.irc_password);
 		if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 	}
+	free(prefs.irc_password);
 	sprintf(buf,"NICK %s\n",prefs.irc_nick);
 	if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 	sprintf(buf,"USER %s 0 * :%s\n",prefs.irc_username,prefs.irc_realname);
 	if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
+	free(prefs.irc_username); free(prefs.irc_realname);
 
 	for(;;)
 	{
@@ -215,7 +222,7 @@ int main(void)
 			FD_CLR(mpd_sockfd,&read_flags);
 			memset(buf,0,sizeof(buf));
 			if(read(mpd_sockfd,buf,sizeof(buf)-1) > 0)
-				parser("mpd",buf);
+				m2i_parser("mpd",buf);
 		}
 
 		if(FD_ISSET(irc_sockfd,&read_flags))
@@ -223,7 +230,7 @@ int main(void)
 			FD_CLR(irc_sockfd,&read_flags);
 			memset(buf,0,sizeof(buf));
 			if(read(irc_sockfd,buf,sizeof(buf)-1) > 0)
-				parser("irc",buf);
+				m2i_parser("irc",buf);
 		}
 	}
 
@@ -307,6 +314,7 @@ int server_connect_tcp(const char *host, int port)
 			return -1;
 	}
 
+	freeaddrinfo(result);
 	errno = 0;
 	return sockfd;
 }
@@ -328,7 +336,7 @@ int server_connect(const char *host, int port)
 }
 
 /* parser that receives all the mpd/irc data */
-int parser(const char *origin, char *msg)
+int m2i_parser(const char *origin, char *msg)
 {
 	unsigned int major, minor;
 	unsigned short mpd_new_song = 0;
@@ -356,12 +364,13 @@ int parser(const char *origin, char *msg)
 						"you need at least MPD 0.14.");
 
 				/* authentication */
-				if(prefs.mpd_password != NULL)
+				if(strlen(prefs.mpd_password) > 0)
 				{
 					sprintf(buf,"password %s\n",
 					prefs.mpd_password);
 					if(write(mpd_sockfd,buf,strlen(buf)) < 0) perror("MPD: write");
 				}
+				free(prefs.mpd_password);
 				mpd_write("status\ncurrentsong");
 			}
 
@@ -380,14 +389,19 @@ int parser(const char *origin, char *msg)
 
 			if(mpd_new_song == 1)
 			{
-				if(strncmp(line,"file: ",6) == 0)
+				if(strncmp(line,"file: ",6) == 0) {
+					free(current_song.file);
 					current_song.file = strdup(&line[6]);
-				else if(strncmp(line,"Artist: ",8) == 0)
+				} else if(strncmp(line,"Artist: ",8) == 0) {
+					free(current_song.artist);
 					current_song.artist = strdup(&line[8]);
-				else if(strncmp(line,"Title: ",7) == 0)
+				} else if(strncmp(line,"Title: ",7) == 0) {
+					free(current_song.title);
 					current_song.title = strdup(&line[7]);
-				else if(strncmp(line,"Album: ",7) == 0)
+				} else if(strncmp(line,"Album: ",7) == 0) {
+					free(current_song.album);
 					current_song.album = strdup(&line[7]);
+				}
 			}
 
 			/* status change */
@@ -397,8 +411,10 @@ int parser(const char *origin, char *msg)
 				sscanf(line,"%*s %hd",&mpd_status.random);
 			if(strncmp(line,"xfade: ",7) == 0)
 				sscanf(line,"%*s %hd",&mpd_status.xfade);
-			if(strncmp(line,"state: ",7) == 0)
+			if(strncmp(line,"state: ",7) == 0) {
+				free(mpd_status.state);
 				mpd_status.state = strdup(&line[7]);
+			}
 		}
 
 		/* IRC events */
@@ -500,6 +516,7 @@ int parser(const char *origin, char *msg)
 				prefs.die_password);
 			if(strstr(line,tmp))
 			{
+				free(prefs.die_password);
 				sprintf(buf,"QUIT :Exiting\n");
 				if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 				if(write(mpd_sockfd,"close\n",6) < 0) perror("MPD: write");
@@ -519,6 +536,8 @@ int parser(const char *origin, char *msg)
 						prefs.irc_authpass);
 					if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 				}
+				free(prefs.irc_authserv); free(prefs.irc_authcmd);
+				free(prefs.irc_authnick); free(prefs.irc_authpass);
 				sprintf(buf,"JOIN %s\n",prefs.irc_channel);
 				if(write(irc_sockfd,buf,strlen(buf)) < 0) perror("IRC: write");
 				continue;
@@ -573,12 +592,13 @@ int irc_say(const char *msg)
 
 int cleanup(void)
 {
-	cfg_free(cfg);
 	free(current_song.file);
 	free(current_song.artist);
 	free(current_song.title);
 	free(current_song.album);
 	free(mpd_status.state);
+	free(prefs.irc_nick);
+	free(prefs.irc_channel);
 	close(irc_sockfd);
 	close(mpd_sockfd);
 	exit(EXIT_SUCCESS);
