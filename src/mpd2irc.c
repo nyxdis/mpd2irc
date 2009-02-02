@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,14 +67,14 @@ static struct song_info {
 
 /* current mpd status */
 static struct mpd_status {
-	short repeat;
-	short random;
+	bool repeat;
+	bool random;
 	short xfade;
 	char *state;
 } mpd_status;
 
 static int irc_sockfd, mpd_sockfd;
-static unsigned short announce = 1;
+static bool announce = true;
 static cfg_t *cfg;
 
 int main(void)
@@ -339,7 +340,7 @@ int server_connect(const char *host, int port)
 int m2i_parser(const char *origin, char *msg)
 {
 	unsigned int major, minor;
-	unsigned short mpd_new_song = 0;
+	bool mpd_new_song = false;
 	char *line, *saveptr, buf[256], tmp[256];
 
 	line = strtok_r(msg,"\n",&saveptr);
@@ -384,10 +385,10 @@ int m2i_parser(const char *origin, char *msg)
 			else if(strncmp(line,"file: ",6) == 0)
 			{
 				if(strncmp(current_song.file,&line[6],strlen(&line[6])))
-					mpd_new_song = 1;
+					mpd_new_song = true;
 			}
 
-			if(mpd_new_song == 1)
+			if(mpd_new_song == true)
 			{
 				if(strncmp(line,"file: ",6) == 0) {
 					free(current_song.file);
@@ -405,10 +406,14 @@ int m2i_parser(const char *origin, char *msg)
 			}
 
 			/* status change */
-			if(strncmp(line,"repeat: ",8) == 0)
-				sscanf(line,"%*s %hd",&mpd_status.repeat);
-			if(strncmp(line,"random: ",8) == 0)
-				sscanf(line,"%*s %hd",&mpd_status.random);
+			if(strncmp(line,"repeat: ",8) == 0) {
+				if(atoi(&line[8]) == 0) mpd_status.repeat = false;
+				else mpd_status.repeat = true;
+			}
+			if(strncmp(line,"random: ",8) == 0) {
+				if(atoi(&line[8]) == 0) mpd_status.random = false;
+				else mpd_status.random = true;
+			}
 			if(strncmp(line,"xfade: ",7) == 0)
 				sscanf(line,"%*s %hd",&mpd_status.xfade);
 			if(strncmp(line,"state: ",7) == 0) {
@@ -470,10 +475,10 @@ int m2i_parser(const char *origin, char *msg)
 
 			else if(irc_match(line,"announce") == 0)
 			{
-				if(announce == 0) announce = 1;
-				else announce = 0;
+				if(announce == false) announce = true;
+				else announce = false;
 				sprintf(buf,"Announcements %sabled.",
-					(announce == 0 ? "dis" : "en"));
+					(announce == false ? "dis" : "en"));
 				irc_say(buf);
 			}
 
@@ -551,13 +556,13 @@ int m2i_parser(const char *origin, char *msg)
 		}
 	} while((line = strtok_r(NULL,"\n",&saveptr)) != NULL);
 
-	if(mpd_new_song == 1 && announce == 1)
+	if(mpd_new_song == true && announce == true)
 	{
 		sprintf(buf,"New song: %s - %s (%s)",current_song.artist,
 			current_song.title,current_song.album);
 		irc_say(buf);
 	}
-	mpd_new_song = 0;
+	mpd_new_song = false;
 	return 0;
 }
 
