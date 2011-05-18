@@ -15,7 +15,6 @@
 
 static gboolean irc_callback(GSocket *socket, GIOCondition condition,
 		gpointer user_data);
-static void irc_say(const gchar *msg);
 static void irc_source_attach(void);
 static void irc_write(const gchar *fmt, ...);
 static void irc_parse(const gchar *buffer);
@@ -63,7 +62,7 @@ void irc_parse(const gchar *line)
 }
 */
 
-static void irc_say(const gchar *msg)
+void irc_say(const gchar *msg)
 {
 	irc_write("PRIVMSG %s :%s", prefs.irc_channel, msg);
 }
