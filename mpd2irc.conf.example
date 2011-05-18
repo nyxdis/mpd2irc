@@ -6,39 +6,36 @@
 ## MPD settings
 ## server can be a hostname or UNIX domain socket
 
-#mpd {
-	#server = "localhost"
-	#password = ""
-	#port = 6600
-#}
+[mpd]
+#server = localhost
+#password = 
+#port = 6600
 
 ## IRC connection settings
 ##
 ## server and channel are required
 
-irc_connection {
-	server = ""
-	#password = ""
-	channel = ""
-	#nick = "mpd2irc"
-	#realname = "mpd2irc 0.0.1"
-	#username = ""
-}
+[irc]
+server = 
+#use_ssl = false
+#password = 
+channel = 
+#nick = mpd2irc
+#realname = mpd2irc 0.2.0
+#username = 
 
 ## IRC authentication
 ##
 ## Authentication is disabled when authserv is empty.
 
-#irc_auth {
-	#authserv = "nickserv"
-	#cmd = "identify"
-	#nick = ""
-	#password = ""
-#}
+[irc-auth]
+#authserv = nickserv
+#string = 
 
 ## die password
 ##
 ## This password is used to kill the bot from IRC,
 ## set it to something more secure.
 
-#die_password = "secret"
+[general]
+#die_password = secret
