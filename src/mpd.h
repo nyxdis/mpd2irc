@@ -10,5 +10,6 @@
 #define HAVE_MPD_H
 
 gboolean mpd_connect(void);
+void mpd_schedule_reconnect(void);
 
 #endif /* HAVE_MPD_H */

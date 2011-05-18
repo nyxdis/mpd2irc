@@ -15,7 +15,6 @@
 static gboolean mpd_parse(GIOChannel *channel, GIOCondition condition,
 		gboolean user_data);
 static void mpd_disconnect(void);
-static void mpd_schedule_reconnect(void);
 static gboolean mpd_reconnect(G_GNUC_UNUSED gpointer data);
 
 static struct {
@@ -33,7 +32,6 @@ gboolean mpd_connect(void)
 	if (mpd_connection_get_error(mpd.conn) != MPD_ERROR_SUCCESS) {
 		g_warning("Failed to connect to MPD: %s",
 				mpd_connection_get_error_message(mpd.conn));
-		mpd_schedule_reconnect();
 		return FALSE;
 	} else if (mpd_connection_cmp_server_version(mpd.conn, 0, 14, 0) < 0) {
 		g_critical("MPD too old, please upgrade to 0.14 or newer");
@@ -92,7 +90,7 @@ static void mpd_disconnect(void)
 	mpd.conn = NULL;
 }
 
-static void mpd_schedule_reconnect(void)
+void mpd_schedule_reconnect(void)
 {
 	mpd.reconnect_source = g_timeout_add_seconds(30, mpd_reconnect, NULL);
 }

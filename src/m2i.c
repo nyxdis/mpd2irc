@@ -47,7 +47,8 @@ int main(int argc, char *argv[])
 	sigaction(SIGQUIT, &sa, NULL);
 
 	/* connect to mpd */
-	mpd_connect();
+	if (!mpd_connect())
+		mpd_schedule_reconnect();
 
 	/* connect to irc */
 	if (!irc_connect())
