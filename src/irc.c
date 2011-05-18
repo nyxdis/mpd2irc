@@ -98,12 +98,17 @@ static gboolean irc_callback(GSocket *socket,
 		G_GNUC_UNUSED GIOCondition condition,
 		G_GNUC_UNUSED gpointer user_data)
 {
-	const gushort len = 1024;
-	gchar *buffer = g_malloc0(len);
+	gchar c;
+	GString *buffer = g_string_new("");
 
-	g_socket_receive(socket, buffer, len, NULL, NULL);
-	irc_parse(buffer);
-	g_free(buffer);
+	do {
+		g_socket_receive(socket, &c, 1, NULL, NULL);
+		g_string_append_c(buffer, c);
+	} while (c != '\n');
+
+	/* TODO strip CRLF */
+	irc_parse(buffer->str);
+	g_string_free(buffer, TRUE);
 
 	return TRUE;
 }
