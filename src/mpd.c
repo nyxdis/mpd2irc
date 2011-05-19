@@ -16,6 +16,7 @@ static gboolean mpd_parse(GIOChannel *channel, GIOCondition condition,
 		gboolean user_data);
 static void mpd_disconnect(void);
 static gboolean mpd_reconnect(G_GNUC_UNUSED gpointer data);
+static void mpd_update(void);
 
 static struct {
 	struct mpd_connection *conn;
@@ -77,7 +78,7 @@ static gboolean mpd_parse(G_GNUC_UNUSED GIOChannel *channel,
 		return FALSE;
 	}
 
-	/* TODO parse response */
+	mpd_update();
 
 	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 	return TRUE;
@@ -104,4 +105,22 @@ static gboolean mpd_reconnect(G_GNUC_UNUSED gpointer data)
 
 	mpd.reconnect_source = 0;
 	return FALSE; // remove event
+}
+
+static void mpd_update(void)
+{
+	enum mpd_state prev = MPD_STATE_UNKNOWN;
+
+	if (mpd.status) {
+		prev = mpd_status_get_state(mpd.status);
+		mpd_status_free(mpd.status);
+	}
+
+	mpd.status = mpd_run_status(mpd.conn);
+	mpd_response_finish(mpd.conn);
+
+	if (mpd_status_get_state(mpd.status) == MPD_STATE_PLAY &&
+			prev != MPD_STATE_PAUSE) {
+		/* new song */
+	}
 }
