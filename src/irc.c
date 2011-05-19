@@ -56,7 +56,6 @@ static void irc_run(const gchar *command)
 				(prefs.announce ? "en" : "dis"));
 	} else if (g_ascii_strncasecmp(command, "next", 4) == 0) {
 		mpd_next();
-		mpd_announce_song();
 	} else if (g_ascii_strncasecmp(command, "np", 2) == 0) {
 		mpd_announce_song();
 	} else if (g_ascii_strncasecmp(command, "pause", 5) == 0) {
