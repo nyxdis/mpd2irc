@@ -13,6 +13,7 @@
 
 #include "preferences.h"
 #include "mpd.h"
+#include "config.h"
 
 static void irc_run(const gchar *command);
 void irc_say(const gchar *fmt, ...);
@@ -73,7 +74,7 @@ static void irc_run(const gchar *command)
 	} else if (g_ascii_strncasecmp(command, "stop", 4) == 0) {
 		/* TODO */
 	} else if (g_ascii_strncasecmp(command, "version", 7) == 0) {
-		/* TODO */
+		irc_say("This is " PACKAGE_STRING);
 	}
 }
 
