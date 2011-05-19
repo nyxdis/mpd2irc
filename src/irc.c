@@ -15,6 +15,8 @@
 #include "mpd.h"
 #include "config.h"
 
+#define IRC_READ_BUF 2048
+
 static void irc_run(const gchar *command);
 void irc_say(const gchar *fmt, ...);
 static void irc_connected(GSocketClient *client, GAsyncResult *result,
@@ -141,17 +143,15 @@ static gboolean irc_callback(G_GNUC_UNUSED GSocket *socket,
 		G_GNUC_UNUSED GIOCondition condition,
 		G_GNUC_UNUSED gpointer user_data)
 {
-	gchar c;
-	GString *buffer = g_string_new("");
+	gchar *buf, **lines;
 
-	do {
-		g_input_stream_read(istream, &c, 1, NULL, NULL);
-		g_string_append_c(buffer, c);
-	} while (c != '\n');
-
-	/* TODO strip CRLF */
-	irc_parse(buffer->str);
-	g_string_free(buffer, TRUE);
+	buf = g_malloc0(IRC_READ_BUF);
+	g_input_stream_read(istream, buf, IRC_READ_BUF, NULL, NULL);
+	lines = g_strsplit(buf, "\r\n", 0);
+	g_free(buf);
+	for (guint i = 0; lines[i] != NULL; i++)
+		irc_parse(lines[i]);
+	g_strfreev(lines);
 
 	return TRUE;
 }
