@@ -65,7 +65,7 @@ static void irc_connected(GSocketClient *client, GAsyncResult *result,
 
 	connection = g_socket_client_connect_finish(client, result, &error);
 	if (!connection) {
-		g_debug("Failed to connect to IRC: %s", error->message);
+		g_warning("Failed to connect to IRC: %s", error->message);
 		irc_schedule_reconnect();
 		return;
 	}
@@ -194,7 +194,6 @@ static void irc_parse(const gchar *buffer)
 	}
 
 	if (strstr(buffer, "PING :")) {
-		g_debug("Received PING");
 		irc_write("PONG :%s", strstr(buffer, "PING :") + 6);
 	}
 
