@@ -55,7 +55,8 @@ static void irc_run(const gchar *command)
 		irc_say("New song announcement %sabled",
 				(prefs.announce ? "en" : "dis"));
 	} else if (g_ascii_strncasecmp(command, "next", 4) == 0) {
-		/* TODO */
+		mpd_next();
+		mpd_announce_song();
 	} else if (g_ascii_strncasecmp(command, "np", 2) == 0) {
 		mpd_announce_song();
 	} else if (g_ascii_strncasecmp(command, "pause", 5) == 0) {

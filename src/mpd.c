@@ -142,3 +142,14 @@ void mpd_announce_song(void)
 
 	irc_say("Now playing: %s - %s (%s)", artist, song, album);
 }
+
+/* TODO: avoid redundancy */
+void mpd_next(void)
+{
+	mpd_command_list_begin(mpd.conn, FALSE);
+	mpd_run_noidle(mpd.conn);
+	mpd_run_next(mpd.conn);
+	mpd_run_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
+	mpd_command_list_end(mpd.conn);
+	mpd_response_finish(mpd.conn);
+}
