@@ -45,7 +45,15 @@ void irc_connect(void)
 static void irc_connected(GSocketClient *client, GAsyncResult *result,
 		G_GNUC_UNUSED gpointer user_data)
 {
-	connection = g_socket_client_connect_finish(client, result, NULL);
+	GError *error = NULL;
+
+	connection = g_socket_client_connect_finish(client, result, &error);
+	if (!connection) {
+		g_debug("Failed to connect to IRC: %s", error->message);
+		return;
+		/* TODO schedule reconnect */
+	}
+
 	ostream = g_io_stream_get_output_stream(G_IO_STREAM(connection));
 	istream = g_io_stream_get_input_stream(G_IO_STREAM(connection));
 
