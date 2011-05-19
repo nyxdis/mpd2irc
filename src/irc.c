@@ -33,12 +33,16 @@ static GInputStream *istream;
 void irc_connect(void)
 {
 	GSocketClient *client;
+	gushort default_port = 6667;
 
 	client = g_socket_client_new();
 	g_socket_client_set_tls(client, prefs.irc_use_ssl);
 	g_socket_client_set_tls_validation_flags(client, 0);
-	g_socket_client_connect_to_host_async(client, prefs.irc_server, 6667,
-			NULL, (GAsyncReadyCallback) irc_connected, NULL);
+	if (prefs.irc_use_ssl)
+		default_port = 6697;
+	g_socket_client_connect_to_host_async(client, prefs.irc_server,
+			default_port, NULL, (GAsyncReadyCallback) irc_connected,
+			NULL);
 	g_object_unref(client);
 }
 
