@@ -62,9 +62,17 @@ void irc_parse(const gchar *line)
 }
 */
 
-void irc_say(const gchar *msg)
+void irc_say(const gchar *fmt, ...)
 {
+	va_list ap;
+	gchar *msg;
+
+	va_start(ap, fmt);
+	msg = g_strdup_vprintf(fmt, ap);
+	va_end(ap);
+
 	irc_write("PRIVMSG %s :%s", prefs.irc_channel, msg);
+	g_free(msg);
 }
 
 static void irc_write(const gchar *fmt, ...)

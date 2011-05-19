@@ -10,6 +10,6 @@
 #define HAVE_IRC_H
 
 gboolean irc_connect(void);
-void irc_say(const gchar *msg);
+void irc_say(const gchar *msg, ...);
 
 #endif /* HAVE_IRC_H */
