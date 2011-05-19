@@ -63,6 +63,8 @@ void parse_config(void)
 	/* general */
 	prefs.die_password = g_key_file_get_string(config, "general",
 			"die_password", NULL);
+
+	g_key_file_free(config);
 }
 
 void parse_args(gint argc, gchar *argv[])
@@ -92,4 +94,19 @@ static void print_version(void)
 	puts("Copyright 2008-2011 Christoph Mende <mende.christoph@gmail.com>");
 	puts("All rights reserved. Released under the 2-clause BSD license.");
 	exit(EXIT_SUCCESS);
+}
+
+void prefs_cleanup(void)
+{
+	g_free(prefs.mpd_server);
+	g_free(prefs.mpd_password);
+	g_free(prefs.irc_server);
+	g_free(prefs.irc_password);
+	g_free(prefs.irc_channel);
+	g_free(prefs.irc_nick);
+	g_free(prefs.irc_realname);
+	g_free(prefs.irc_username);
+	g_free(prefs.irc_auth_serv);
+	g_free(prefs.irc_auth_string);
+	g_free(prefs.die_password);
 }

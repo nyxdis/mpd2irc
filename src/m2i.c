@@ -19,6 +19,7 @@ static void m2i_sighandler(gint sig);
 static void m2i_open_signal_pipe(void);
 static gboolean m2i_signal_parse(GIOChannel *source, GIOCondition condition,
 		gpointer data);
+static void m2i_cleanup(void);
 
 static int signal_pipe[2] = { -1, -1 };
 static int signal_source;
@@ -61,6 +62,8 @@ int main(int argc, char *argv[])
 	g_main_loop_run(loop);
 
 	/* clean up */
+	m2i_cleanup();
+
 	return 0;
 }
 
@@ -71,8 +74,9 @@ static void m2i_sighandler(gint sig)
 	}
 }
 
-void m2i_cleanup(void)
+static void m2i_cleanup(void)
 {
+	prefs_cleanup();
 }
 
 static void m2i_open_signal_pipe(void)

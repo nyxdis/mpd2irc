@@ -34,5 +34,6 @@ struct {
 
 void parse_config(void);
 void parse_args(gint argc, gchar *argv[]);
+void prefs_cleanup(void);
 
 #endif /* HAVE_PREFERENCES_H */
