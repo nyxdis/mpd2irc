@@ -1,7 +1,7 @@
 mpd2irc
 =======
 
-mpd2irc is an interface between IRC and the music playe daemon. It announces
+mpd2irc is an interface between IRC and the music player daemon. It announces
 new songs on IRC (if enabled) and allows you to control your MPD via commands
 on IRC.
 
