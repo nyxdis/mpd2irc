@@ -12,6 +12,7 @@
 #include <glib.h>
 
 #include "preferences.h"
+#include "mpd.h"
 
 static void irc_run(const gchar *command);
 void irc_say(const gchar *fmt, ...);
@@ -55,7 +56,7 @@ static void irc_run(const gchar *command)
 	} else if (g_ascii_strncasecmp(command, "next", 4) == 0) {
 		/* TODO */
 	} else if (g_ascii_strncasecmp(command, "np", 2) == 0) {
-		/* TODO */
+		mpd_announce_song();
 	} else if (g_ascii_strncasecmp(command, "pause", 5) == 0) {
 		/* TODO */
 	} else if (g_ascii_strncasecmp(command, "play", 4) == 0) {

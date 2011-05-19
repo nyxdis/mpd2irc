@@ -11,5 +11,6 @@
 
 gboolean mpd_connect(void);
 void mpd_schedule_reconnect(void);
+void mpd_announce_song(void);
 
 #endif /* HAVE_MPD_H */

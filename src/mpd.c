@@ -127,14 +127,18 @@ static void mpd_update(void)
 		mpd.song = mpd_run_current_song(mpd.conn);
 		mpd_response_finish(mpd.conn);
 
-		if (prefs.announce) {
-			const gchar *artist, *song, *album;
-
-			artist = mpd_song_get_tag(mpd.song, MPD_TAG_ARTIST, 0);
-			song = mpd_song_get_tag(mpd.song, MPD_TAG_TITLE, 0);
-			album = mpd_song_get_tag(mpd.song, MPD_TAG_ALBUM, 0);
-
-			irc_say("New song: %s - %s (%s)", artist, song, album);
-		}
+		if (prefs.announce)
+			mpd_announce_song();
 	}
+}
+
+void mpd_announce_song(void)
+{
+	const gchar *artist, *song, *album;
+
+	artist = mpd_song_get_tag(mpd.song, MPD_TAG_ARTIST, 0);
+	song = mpd_song_get_tag(mpd.song, MPD_TAG_TITLE, 0);
+	album = mpd_song_get_tag(mpd.song, MPD_TAG_ALBUM, 0);
+
+	irc_say("Now playing: %s - %s (%s)", artist, song, album);
 }
