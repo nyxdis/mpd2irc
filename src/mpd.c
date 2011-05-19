@@ -146,12 +146,10 @@ void mpd_announce_song(void)
 /* TODO: avoid redundancy */
 void mpd_next(void)
 {
-	mpd_command_list_begin(mpd.conn, FALSE);
 	mpd_run_noidle(mpd.conn);
 	mpd_run_next(mpd.conn);
-	mpd_run_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
-	mpd_command_list_end(mpd.conn);
 	mpd_response_finish(mpd.conn);
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 }
 
 void mpd_say_status(void)
