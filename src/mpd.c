@@ -155,7 +155,7 @@ void mpd_next(void)
 void mpd_say_status(void)
 {
 	gchar *state;
-	const gchar *artist, *title;
+	gchar *artist, *title;
 
 	if (mpd.status)
 		mpd_status_free(mpd.status);
@@ -198,4 +198,10 @@ void mpd_say_status(void)
 	g_free(state);
 	g_free(artist);
 	g_free(title);
+}
+
+void mpd_cleanup(void)
+{
+	g_source_remove(mpd.idle_source);
+	mpd_disconnect();
 }

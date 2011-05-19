@@ -77,6 +77,9 @@ static void m2i_cleanup(void)
 {
 	prefs_cleanup();
 	irc_cleanup();
+	mpd_cleanup();
+
+	g_source_remove(signal_source);
 }
 
 static void m2i_open_signal_pipe(void)

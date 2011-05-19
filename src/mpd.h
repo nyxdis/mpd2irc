@@ -14,5 +14,6 @@ void mpd_schedule_reconnect(void);
 void mpd_announce_song(void);
 void mpd_next(void);
 void mpd_say_status(void);
+void mpd_cleanup(void);
 
 #endif /* HAVE_MPD_H */

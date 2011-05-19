@@ -32,7 +32,7 @@ static GSocketConnection *connection;
 static gboolean connected = FALSE;
 static GOutputStream *ostream;
 static GInputStream *istream;
-
+static GSource *callback_source;
 static int reconnect_source = 0;
 
 gboolean irc_connect(G_GNUC_UNUSED gpointer data)
@@ -70,6 +70,8 @@ static void irc_connected(GSocketClient *client, GAsyncResult *result,
 		irc_schedule_reconnect();
 		return;
 	}
+
+	g_message("Connected to IRC");
 
 	ostream = g_io_stream_get_output_stream(G_IO_STREAM(connection));
 	istream = g_io_stream_get_input_stream(G_IO_STREAM(connection));
@@ -151,9 +153,10 @@ static void irc_write(const gchar *fmt, ...)
 static void irc_source_attach(void)
 {
 	GSocket *socket = g_socket_connection_get_socket(connection);
-	GSource *source = g_socket_create_source(socket, G_IO_IN, NULL);
-	g_source_set_callback(source, (GSourceFunc) irc_callback, NULL, NULL);
-	g_source_attach(source, NULL);
+	callback_source = g_socket_create_source(socket, G_IO_IN, NULL);
+	g_source_set_callback(callback_source, (GSourceFunc) irc_callback,
+			NULL, NULL);
+	g_source_attach(callback_source, NULL);
 }
 
 static gboolean irc_callback(G_GNUC_UNUSED GSocket *socket,
@@ -214,6 +217,7 @@ void irc_cleanup(void)
 {
 	if (connection)
 		g_object_unref(connection);
+	g_source_unref(callback_source);
 }
 
 static void irc_schedule_reconnect(void)
