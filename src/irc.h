@@ -9,7 +9,7 @@
 #ifndef HAVE_IRC_H
 #define HAVE_IRC_H
 
-gboolean irc_connect(void);
+void irc_connect(void);
 void irc_say(const gchar *msg, ...);
 void irc_cleanup(void);
 

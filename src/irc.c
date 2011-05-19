@@ -17,6 +17,8 @@
 
 static void irc_run(const gchar *command);
 void irc_say(const gchar *fmt, ...);
+static void irc_connected(GSocketClient *client, GAsyncResult *result,
+		gpointer user_data);
 static gboolean irc_callback(GSocket *socket, GIOCondition condition,
 		gpointer user_data);
 static void irc_source_attach(void);
@@ -25,24 +27,30 @@ static void irc_parse(const gchar *buffer);
 
 static GSocketConnection *connection;
 static gboolean connected = FALSE;
+static GOutputStream *ostream;
+static GInputStream *istream;
 
-gboolean irc_connect(void)
+void irc_connect(void)
 {
 	GSocketClient *client;
 
 	client = g_socket_client_new();
-	connection = g_socket_client_connect_to_host(client, prefs.irc_server,
-			6667, NULL, NULL);
+	g_socket_client_connect_to_host_async(client, prefs.irc_server, 6667,
+			NULL, (GAsyncReadyCallback) irc_connected, NULL);
 	g_object_unref(client);
-	if (!connection)
-		return FALSE;
+}
+
+static void irc_connected(GSocketClient *client, GAsyncResult *result,
+		G_GNUC_UNUSED gpointer user_data)
+{
+	connection = g_socket_client_connect_finish(client, result, NULL);
+	ostream = g_io_stream_get_output_stream(G_IO_STREAM(connection));
+	istream = g_io_stream_get_input_stream(G_IO_STREAM(connection));
 
 	irc_write("NICK %s", prefs.irc_nick);
 	irc_write("USER %s 0 * :%s", prefs.irc_username, prefs.irc_realname);
 
 	irc_source_attach();
-
-	return TRUE;
 }
 
 static void irc_run(const gchar *command)
@@ -93,11 +101,8 @@ void irc_say(const gchar *fmt, ...)
 
 static void irc_write(const gchar *fmt, ...)
 {
-	GSocket *socket;
 	gchar *tmp1, *tmp2;
 	va_list ap;
-
-	socket = g_socket_connection_get_socket(connection);
 
 	va_start(ap, fmt);
 	tmp1 = g_strdup_vprintf(fmt, ap);
@@ -106,7 +111,7 @@ static void irc_write(const gchar *fmt, ...)
 	tmp2 = g_strconcat(tmp1, "\n", NULL);
 	g_free(tmp1);
 
-	g_socket_send(socket, tmp2, strlen(tmp2), NULL, NULL);
+	g_output_stream_write(ostream, tmp2, strlen(tmp2), NULL, NULL);
 	g_free(tmp2);
 }
 
@@ -118,7 +123,7 @@ static void irc_source_attach(void)
 	g_source_attach(source, NULL);
 }
 
-static gboolean irc_callback(GSocket *socket,
+static gboolean irc_callback(G_GNUC_UNUSED GSocket *socket,
 		G_GNUC_UNUSED GIOCondition condition,
 		G_GNUC_UNUSED gpointer user_data)
 {
@@ -126,7 +131,7 @@ static gboolean irc_callback(GSocket *socket,
 	GString *buffer = g_string_new("");
 
 	do {
-		g_socket_receive(socket, &c, 1, NULL, NULL);
+		g_input_stream_read(istream, &c, 1, NULL, NULL);
 		g_string_append_c(buffer, c);
 	} while (c != '\n');
 
