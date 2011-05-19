@@ -122,6 +122,7 @@ static void mpd_update(void)
 
 	if (mpd_status_get_state(mpd.status) == MPD_STATE_PLAY &&
 			prev != MPD_STATE_PAUSE) {
+		/* TODO check announce setting */
 		const gchar *artist, *song, *album;
 
 		if (mpd.song)

@@ -13,6 +13,7 @@
 
 #include "preferences.h"
 
+static void irc_run(const gchar *command);
 static gboolean irc_callback(GSocket *socket, GIOCondition condition,
 		gpointer user_data);
 static void irc_source_attach(void);
@@ -40,27 +41,32 @@ gboolean irc_connect(void)
 	return TRUE;
 }
 
-/*
-void irc_parse(const gchar *line)
+static void irc_run(const gchar *command)
 {
-	(void)line;
-	* ERROR: Closing Link
-	 PING
-	 !next
-	 !prev
-	 !pause
-	 !status
-	 !np
-	 !version
-	 !announce
-	 !play
-	 !stop
-	 !random
-	 !repeat
-	 die <die password> *
-	irc_say("foo");
+	if (g_ascii_strncasecmp(command, "announce", 8) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "next", 4) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "np", 2) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "pause", 5) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "play", 4) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "prev", 4) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "random", 6) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "repeat", 6) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "status", 6) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "stop", 4) == 0) {
+		/* TODO */
+	} else if (g_ascii_strncasecmp(command, "version", 7) == 0) {
+		/* TODO */
+	}
 }
-*/
 
 void irc_say(const gchar *fmt, ...)
 {
@@ -123,13 +129,24 @@ static gboolean irc_callback(GSocket *socket,
 
 static void irc_parse(const gchar *buffer)
 {
+	/* TODO:
+	 * ERROR: Closing Link
+	 * PING
+	 * die <die password>
+	 */
+	gchar *tmp;
+
 	if (!connected) {
-		gchar *tmp = g_strdup_printf(" 001 %s :", prefs.irc_nick);
+		tmp = g_strdup_printf(" 001 %s :", prefs.irc_nick);
 		if (strstr(buffer, tmp)) {
 			irc_write("JOIN %s", prefs.irc_channel);
 			connected = TRUE;
 		}
+		g_free(tmp);
 	}
 
-	g_message("%s", buffer);
+	tmp = g_strdup_printf("PRIVMSG %s :!", prefs.irc_channel);
+	if (strstr(buffer, tmp))
+		irc_run(strstr(buffer, tmp) + strlen(tmp));
+	g_free(tmp);
 }
