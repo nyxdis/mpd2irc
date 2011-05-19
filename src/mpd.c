@@ -153,3 +153,43 @@ void mpd_next(void)
 	mpd_command_list_end(mpd.conn);
 	mpd_response_finish(mpd.conn);
 }
+
+void mpd_say_status(void)
+{
+	gchar *state;
+	const gchar *artist, *title;
+
+	if (mpd.status)
+		mpd_status_free(mpd.status);
+
+	mpd_run_noidle(mpd.conn);
+	mpd.status = mpd_run_status(mpd.conn);
+	mpd_response_finish(mpd.conn);
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
+
+	switch (mpd_status_get_state(mpd.status)) {
+		case MPD_STATE_STOP:
+			state = g_strdup("stopped"); break;
+		case MPD_STATE_PLAY:
+			state = g_strdup("playing"); break;
+		case MPD_STATE_PAUSE:
+			state = g_strdup("paused"); break;
+		default:
+			state = g_strdup("unknown"); break;
+	}
+
+	artist = mpd_song_get_tag(mpd.song, MPD_TAG_ARTIST, 0);
+	title = mpd_song_get_tag(mpd.song, MPD_TAG_TITLE, 0);
+
+	irc_say("[%s] %s - %s (%i:%02i/%i:%02i) | repeat: %sabled | "
+			"random: %sabled | announce: %sabled",
+			state, artist, title,
+			mpd_status_get_elapsed_time(mpd.status) / 60,
+			mpd_status_get_elapsed_time(mpd.status) % 60,
+			mpd_status_get_total_time(mpd.status) / 60,
+			mpd_status_get_total_time(mpd.status) % 60,
+			(mpd_status_get_repeat(mpd.status) ? "en" : "dis"),
+			(mpd_status_get_random(mpd.status) ? "en" : "dis"),
+			(prefs.announce ? "en" : "dis"));
+	g_free(state);
+}

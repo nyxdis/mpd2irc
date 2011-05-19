@@ -70,7 +70,7 @@ static void irc_run(const gchar *command)
 	} else if (g_ascii_strncasecmp(command, "repeat", 6) == 0) {
 		/* TODO */
 	} else if (g_ascii_strncasecmp(command, "status", 6) == 0) {
-		/* TODO */
+		mpd_say_status();
 	} else if (g_ascii_strncasecmp(command, "stop", 4) == 0) {
 		/* TODO */
 	} else if (g_ascii_strncasecmp(command, "version", 7) == 0) {
