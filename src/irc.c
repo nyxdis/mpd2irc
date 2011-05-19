@@ -174,6 +174,11 @@ static void irc_parse(const gchar *buffer)
 		g_free(tmp);
 	}
 
+	if (strstr(buffer, "PING :")) {
+		g_debug("Received PING");
+		irc_write("PONG :%s", strstr(buffer, "PING :") + 6);
+	}
+
 	tmp = g_strdup_printf("PRIVMSG %s :!", prefs.irc_channel);
 	if (strstr(buffer, tmp))
 		irc_run(strstr(buffer, tmp) + strlen(tmp));
