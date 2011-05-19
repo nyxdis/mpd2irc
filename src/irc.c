@@ -117,6 +117,7 @@ void irc_say(const gchar *fmt, ...)
 
 static void irc_write(const gchar *fmt, ...)
 {
+	GError *error = NULL;
 	gchar *tmp1, *tmp2;
 	va_list ap;
 
@@ -127,7 +128,10 @@ static void irc_write(const gchar *fmt, ...)
 	tmp2 = g_strconcat(tmp1, "\n", NULL);
 	g_free(tmp1);
 
-	g_output_stream_write(ostream, tmp2, strlen(tmp2), NULL, NULL);
+	if (g_output_stream_write(ostream, tmp2, strlen(tmp2),
+				NULL, &error) < 0)
+		g_warning("Failed to write: %s", error->message);
+
 	g_free(tmp2);
 }
 
@@ -143,10 +147,15 @@ static gboolean irc_callback(G_GNUC_UNUSED GSocket *socket,
 		G_GNUC_UNUSED GIOCondition condition,
 		G_GNUC_UNUSED gpointer user_data)
 {
+	GError *error = NULL;
 	gchar *buf, **lines;
 
 	buf = g_malloc0(IRC_READ_BUF);
-	g_input_stream_read(istream, buf, IRC_READ_BUF, NULL, NULL);
+	if (g_input_stream_read(istream, buf, IRC_READ_BUF, NULL, &error) < 0) {
+		g_free(buf);
+		g_warning("Failed to read from IRC: %s", error->message);
+		/* TODO schedule reconnect */
+	}
 	lines = g_strsplit(buf, "\r\n", 0);
 	g_free(buf);
 	for (guint i = 0; lines[i] != NULL; i++)
@@ -160,7 +169,6 @@ static void irc_parse(const gchar *buffer)
 {
 	/* TODO:
 	 * ERROR: Closing Link
-	 * PING
 	 * die <die password>
 	 */
 	gchar *tmp;

@@ -18,8 +18,14 @@ static void print_version(void);
 
 void parse_config(void)
 {
+	GError *error = NULL;
 	GKeyFile *config = g_key_file_new();
-	g_key_file_load_from_file(config, "mpd2irc.conf", 0, NULL);
+
+	if (!g_key_file_load_from_file(config, "mpd2irc.conf", 0, &error)) {
+		g_warning("Failed to parse configuration file: %s",
+				error->message);
+		return;
+	}
 
 	/* MPD */
 	prefs.mpd_server = g_key_file_get_string(config, "mpd", "server", NULL);
@@ -71,6 +77,7 @@ void parse_config(void)
 
 void parse_args(gint argc, gchar *argv[])
 {
+	GError *error = NULL;
 	gchar *config;
 	gboolean version;
 	GOptionContext *context;
@@ -83,7 +90,9 @@ void parse_args(gint argc, gchar *argv[])
 	};
 	context = g_option_context_new("- the interface between IRC and MPD");
 	g_option_context_add_main_entries(context, entries, NULL);
-	g_option_context_parse(context, &argc, &argv, NULL);
+	if (!g_option_context_parse(context, &argc, &argv, &error))
+		g_warning("Parsing command line options failed: %s",
+				error->message);
 	g_option_context_free(context);
 
 	if (version)
