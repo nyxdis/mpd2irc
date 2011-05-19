@@ -32,6 +32,7 @@ gboolean irc_connect(void)
 	client = g_socket_client_new();
 	connection = g_socket_client_connect_to_host(client, prefs.irc_server,
 			6667, NULL, NULL);
+	g_object_unref(client);
 	if (!connection)
 		return FALSE;
 
