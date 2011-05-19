@@ -176,8 +176,14 @@ void mpd_say_status(void)
 			state = g_strdup("unknown"); break;
 	}
 
-	artist = mpd_song_get_tag(mpd.song, MPD_TAG_ARTIST, 0);
-	title = mpd_song_get_tag(mpd.song, MPD_TAG_TITLE, 0);
+	if (mpd.song) {
+		artist = g_strdup(mpd_song_get_tag(mpd.song, MPD_TAG_ARTIST,
+					0));
+		title = g_strdup(mpd_song_get_tag(mpd.song, MPD_TAG_TITLE, 0));
+	} else {
+		artist = g_strdup("");
+		title = g_strdup("");
+	}
 
 	irc_say("[%s] %s - %s (%i:%02i/%i:%02i) | repeat: %sabled | "
 			"random: %sabled | announce: %sabled",
