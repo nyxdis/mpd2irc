@@ -26,13 +26,16 @@ static gboolean irc_callback(GSocket *socket, GIOCondition condition,
 static void irc_source_attach(void);
 static void irc_write(const gchar *fmt, ...);
 static void irc_parse(const gchar *buffer);
+static void irc_schedule_reconnect(void);
 
 static GSocketConnection *connection;
 static gboolean connected = FALSE;
 static GOutputStream *ostream;
 static GInputStream *istream;
 
-void irc_connect(void)
+static int reconnect_source = 0;
+
+gboolean irc_connect(G_GNUC_UNUSED gpointer data)
 {
 	GSocketClient *client;
 	gushort default_port = 6667;
@@ -46,6 +49,8 @@ void irc_connect(void)
 			default_port, NULL, (GAsyncReadyCallback) irc_connected,
 			NULL);
 	g_object_unref(client);
+
+	return FALSE;
 }
 
 static void irc_connected(GSocketClient *client, GAsyncResult *result,
@@ -53,11 +58,16 @@ static void irc_connected(GSocketClient *client, GAsyncResult *result,
 {
 	GError *error = NULL;
 
+	if (reconnect_source > 0) {
+		g_source_remove(reconnect_source);
+		reconnect_source = 0;
+	}
+
 	connection = g_socket_client_connect_finish(client, result, &error);
 	if (!connection) {
 		g_debug("Failed to connect to IRC: %s", error->message);
+		irc_schedule_reconnect();
 		return;
-		/* TODO schedule reconnect */
 	}
 
 	ostream = g_io_stream_get_output_stream(G_IO_STREAM(connection));
@@ -154,7 +164,8 @@ static gboolean irc_callback(G_GNUC_UNUSED GSocket *socket,
 	if (g_input_stream_read(istream, buf, IRC_READ_BUF, NULL, &error) < 0) {
 		g_free(buf);
 		g_warning("Failed to read from IRC: %s", error->message);
-		/* TODO schedule reconnect */
+		irc_schedule_reconnect();
+		return FALSE;
 	}
 	lines = g_strsplit(buf, "\r\n", 0);
 	g_free(buf);
@@ -195,5 +206,11 @@ static void irc_parse(const gchar *buffer)
 
 void irc_cleanup(void)
 {
-	g_object_unref(connection);
+	if (connection)
+		g_object_unref(connection);
+}
+
+static void irc_schedule_reconnect(void)
+{
+	reconnect_source = g_timeout_add_seconds(30, irc_connect, NULL);
 }
