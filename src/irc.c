@@ -14,6 +14,7 @@
 #include "preferences.h"
 
 static void irc_run(const gchar *command);
+void irc_say(const gchar *fmt, ...);
 static gboolean irc_callback(GSocket *socket, GIOCondition condition,
 		gpointer user_data);
 static void irc_source_attach(void);
@@ -44,7 +45,13 @@ gboolean irc_connect(void)
 static void irc_run(const gchar *command)
 {
 	if (g_ascii_strncasecmp(command, "announce", 8) == 0) {
-		/* TODO */
+		if (prefs.announce)
+			prefs.announce = FALSE;
+		else
+			prefs.announce = TRUE;
+
+		irc_say("New song announcement %sabled",
+				(prefs.announce ? "en" : "dis"));
 	} else if (g_ascii_strncasecmp(command, "next", 4) == 0) {
 		/* TODO */
 	} else if (g_ascii_strncasecmp(command, "np", 2) == 0) {

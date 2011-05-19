@@ -65,6 +65,8 @@ void parse_config(void)
 			"die_password", NULL);
 
 	g_key_file_free(config);
+
+	prefs.announce = TRUE;
 }
 
 void parse_args(gint argc, gchar *argv[])

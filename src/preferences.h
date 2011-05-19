@@ -30,6 +30,9 @@ struct {
 
 	/* general */
 	gchar *die_password;
+
+	/* other */
+	gboolean announce;
 } prefs;
 
 void parse_config(void);
