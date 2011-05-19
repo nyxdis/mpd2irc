@@ -196,4 +196,6 @@ void mpd_say_status(void)
 			(mpd_status_get_random(mpd.status) ? "en" : "dis"),
 			(prefs.announce ? "en" : "dis"));
 	g_free(state);
+	g_free(artist);
+	g_free(title);
 }

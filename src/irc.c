@@ -66,6 +66,7 @@ static void irc_connected(GSocketClient *client, GAsyncResult *result,
 	connection = g_socket_client_connect_finish(client, result, &error);
 	if (!connection) {
 		g_warning("Failed to connect to IRC: %s", error->message);
+		g_error_free(error);
 		irc_schedule_reconnect();
 		return;
 	}
@@ -139,8 +140,10 @@ static void irc_write(const gchar *fmt, ...)
 	g_free(tmp1);
 
 	if (g_output_stream_write(ostream, tmp2, strlen(tmp2),
-				NULL, &error) < 0)
+				NULL, &error) < 0) {
 		g_warning("Failed to write: %s", error->message);
+		g_error_free(error);
+	}
 
 	g_free(tmp2);
 }
@@ -159,19 +162,23 @@ static gboolean irc_callback(G_GNUC_UNUSED GSocket *socket,
 {
 	GError *error = NULL;
 	gchar *buf, **lines;
+	gssize len;
 
 	buf = g_malloc0(IRC_READ_BUF);
-	if (g_input_stream_read(istream, buf, IRC_READ_BUF, NULL, &error) < 0) {
+	len = g_input_stream_read(istream, buf, IRC_READ_BUF, NULL, &error);
+	if (len < 0) {
 		g_free(buf);
 		g_warning("Failed to read from IRC: %s", error->message);
+		g_error_free(error);
 		irc_schedule_reconnect();
 		return FALSE;
+	} else if (len > 0) {
+		lines = g_strsplit(buf, "\r\n", 0);
+		for (guint i = 0; lines[i] != NULL; i++)
+			irc_parse(lines[i]);
+		g_strfreev(lines);
 	}
-	lines = g_strsplit(buf, "\r\n", 0);
 	g_free(buf);
-	for (guint i = 0; lines[i] != NULL; i++)
-		irc_parse(lines[i]);
-	g_strfreev(lines);
 
 	return TRUE;
 }
