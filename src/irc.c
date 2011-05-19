@@ -160,3 +160,8 @@ static void irc_parse(const gchar *buffer)
 		irc_run(strstr(buffer, tmp) + strlen(tmp));
 	g_free(tmp);
 }
+
+void irc_cleanup(void)
+{
+	g_object_unref(connection);
+}

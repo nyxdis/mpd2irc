@@ -84,6 +84,7 @@ void parse_args(gint argc, gchar *argv[])
 	context = g_option_context_new("- the interface between IRC and MPD");
 	g_option_context_add_main_entries(context, entries, NULL);
 	g_option_context_parse(context, &argc, &argv, NULL);
+	g_option_context_free(context);
 
 	if (version)
 		print_version();

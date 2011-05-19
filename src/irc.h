@@ -11,5 +11,6 @@
 
 gboolean irc_connect(void);
 void irc_say(const gchar *msg, ...);
+void irc_cleanup(void);
 
 #endif /* HAVE_IRC_H */

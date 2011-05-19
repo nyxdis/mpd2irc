@@ -77,6 +77,7 @@ static void m2i_sighandler(gint sig)
 static void m2i_cleanup(void)
 {
 	prefs_cleanup();
+	irc_cleanup();
 }
 
 static void m2i_open_signal_pipe(void)
