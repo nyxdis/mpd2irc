@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 		mpd_schedule_reconnect();
 
 	/* connect to irc */
-	irc_connect();
+	irc_connect(NULL);
 
 	/* set up events */
 	loop = g_main_loop_new(NULL, FALSE);
