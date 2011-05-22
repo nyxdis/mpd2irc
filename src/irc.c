@@ -30,8 +30,8 @@ static void irc_schedule_reconnect(void);
 
 static GSocketConnection *connection;
 static gboolean connected = FALSE;
-static GOutputStream *ostream;
-static GInputStream *istream;
+static GOutputStream *ostream = NULL;
+static GInputStream *istream = NULL;
 static GSource *callback_source;
 static int reconnect_source = 0;
 
@@ -133,6 +133,9 @@ static void irc_write(const gchar *fmt, ...)
 	GError *error = NULL;
 	gchar *tmp1, *tmp2;
 	va_list ap;
+
+	if (!ostream)
+		return;
 
 	va_start(ap, fmt);
 	tmp1 = g_strdup_vprintf(fmt, ap);
