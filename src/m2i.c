@@ -21,8 +21,8 @@ static gboolean m2i_signal_parse(GIOChannel *source, GIOCondition condition,
 		gpointer data);
 static void m2i_cleanup(void);
 
-static int signal_pipe[2] = { -1, -1 };
-static int signal_source;
+static gint signal_pipe[2] = { -1, -1 };
+static guint signal_source;
 static GMainLoop *loop;
 
 int main(int argc, char *argv[])

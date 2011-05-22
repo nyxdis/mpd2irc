@@ -34,7 +34,7 @@ static gboolean connected = FALSE;
 static GOutputStream *ostream = NULL;
 static GInputStream *istream = NULL;
 static GSource *callback_source;
-static int reconnect_source = 0;
+static guint reconnect_source = 0;
 
 gboolean irc_connect(G_GNUC_UNUSED gpointer data)
 {
