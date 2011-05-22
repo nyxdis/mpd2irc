@@ -31,6 +31,7 @@ static struct {
 gboolean mpd_connect(void)
 {
 	mpd.conn = mpd_connection_new(prefs.mpd_server, prefs.mpd_port, 10000);
+	mpd.idle_source = 0;
 
 	if (mpd_connection_get_error(mpd.conn) != MPD_ERROR_SUCCESS) {
 		g_warning("Failed to connect to MPD: %s",
@@ -220,7 +221,8 @@ void mpd_say_status(void)
 
 void mpd_cleanup(void)
 {
-	g_source_remove(mpd.idle_source);
+	if (mpd.idle_source > 0)
+		g_source_remove(mpd.idle_source);
 	mpd_disconnect();
 }
 
