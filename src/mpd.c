@@ -159,6 +159,11 @@ void mpd_announce_song(void)
 /* TODO: avoid redundancy */
 void mpd_next(void)
 {
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
+
 	mpd_run_noidle(mpd.conn);
 	mpd_run_next(mpd.conn);
 	if (!mpd_response_finish(mpd.conn)) {
@@ -172,6 +177,11 @@ void mpd_say_status(void)
 {
 	gchar *state;
 	gchar *artist, *title;
+
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
 
 	if (mpd.status)
 		mpd_status_free(mpd.status);
