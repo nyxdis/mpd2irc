@@ -14,6 +14,7 @@
 #include "preferences.h"
 #include "mpd.h"
 #include "config.h"
+#include "irc.h"
 
 #define IRC_READ_BUF 2048
 
