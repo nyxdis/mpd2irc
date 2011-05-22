@@ -18,6 +18,7 @@ static gboolean mpd_parse(GIOChannel *channel, GIOCondition condition,
 static void mpd_disconnect(void);
 static gboolean mpd_reconnect(G_GNUC_UNUSED gpointer data);
 static void mpd_update(void);
+static void mpd_report_error(void);
 
 static struct {
 	struct mpd_connection *conn;
@@ -47,9 +48,15 @@ gboolean mpd_connect(void)
 		mpd_command_list_end(mpd.conn);
 
 		mpd.status = mpd_recv_status(mpd.conn);
-		mpd_response_next(mpd.conn);
+		if (!mpd_response_next(mpd.conn)) {
+			mpd_report_error();
+			return FALSE;
+		}
 		mpd.song = mpd_recv_song(mpd.conn);
-		mpd_response_finish(mpd.conn);
+		if (!mpd_response_finish(mpd.conn)) {
+			mpd_report_error();
+			return FALSE;
+		}
 
 		g_message("Connected to MPD");
 
@@ -72,8 +79,7 @@ static gboolean mpd_parse(G_GNUC_UNUSED GIOChannel *channel,
 	mpd_recv_idle(mpd.conn, FALSE);
 
 	if (!mpd_response_finish(mpd.conn)) {
-		g_warning("Failed to read from MPD: %s",
-				mpd_connection_get_error_message(mpd.conn));
+		mpd_report_error();
 		mpd_disconnect();
 		mpd_schedule_reconnect();
 		return FALSE;
@@ -118,14 +124,20 @@ static void mpd_update(void)
 	}
 
 	mpd.status = mpd_run_status(mpd.conn);
-	mpd_response_finish(mpd.conn);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
 
 	if (mpd_status_get_state(mpd.status) == MPD_STATE_PLAY &&
 			prev != MPD_STATE_PAUSE) {
 		if (mpd.song)
 			mpd_song_free(mpd.song);
 		mpd.song = mpd_run_current_song(mpd.conn);
-		mpd_response_finish(mpd.conn);
+		if (!mpd_response_finish(mpd.conn)) {
+			mpd_report_error();
+			return;
+		}
 
 		if (prefs.announce)
 			mpd_announce_song();
@@ -148,7 +160,10 @@ void mpd_next(void)
 {
 	mpd_run_noidle(mpd.conn);
 	mpd_run_next(mpd.conn);
-	mpd_response_finish(mpd.conn);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
 	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 }
 
@@ -162,7 +177,10 @@ void mpd_say_status(void)
 
 	mpd_run_noidle(mpd.conn);
 	mpd.status = mpd_run_status(mpd.conn);
-	mpd_response_finish(mpd.conn);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
 	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 
 	switch (mpd_status_get_state(mpd.status)) {
@@ -204,4 +222,12 @@ void mpd_cleanup(void)
 {
 	g_source_remove(mpd.idle_source);
 	mpd_disconnect();
+}
+
+static void mpd_report_error(void)
+{
+	const gchar *error = mpd_connection_get_error_message(mpd.conn);
+	g_warning("MPD error: %s", error);
+	irc_say("MPD error: %s", error);
+	mpd_connection_clear_error(mpd.conn);
 }
