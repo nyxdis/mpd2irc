@@ -231,5 +231,9 @@ static void mpd_report_error(void)
 	const gchar *error = mpd_connection_get_error_message(mpd.conn);
 	g_warning("MPD error: %s", error);
 	irc_say("MPD error: %s", error);
-	mpd_connection_clear_error(mpd.conn);
+	if (mpd_connection_clear_error(mpd.conn)) {
+		g_warning("Unable to recover, reconnecting");
+		mpd_disconnect();
+		mpd_schedule_reconnect();
+	}
 }
