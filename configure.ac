@@ -16,13 +16,5 @@ PKG_CHECK_MODULES([glib], [glib-2.0 >= 2.28])
 PKG_CHECK_MODULES([gio], [gio-2.0 >= 2.28])
 PKG_CHECK_MODULES([libmpdclient], [libmpdclient >= 2.4])
 
-# Checks for header files.
-AC_CHECK_HEADERS([stdlib.h string.h unistd.h])
-
-# Checks for typedefs, structures, and compiler characteristics.
-
-# Checks for library functions.
-AC_CHECK_FUNCS([strstr])
-
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
