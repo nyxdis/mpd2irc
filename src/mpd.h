@@ -15,5 +15,11 @@ void mpd_announce_song(void);
 void mpd_next(void);
 void mpd_say_status(void);
 void mpd_cleanup(void);
+void mpd_play(void);
+void mpd_pause(void);
+void mpd_prev(void);
+void mpd_repeat(void);
+void mpd_random(void);
+void mpd_stop(void);
 
 #endif /* HAVE_MPD_H */

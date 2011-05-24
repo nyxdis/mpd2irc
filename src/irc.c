@@ -98,19 +98,19 @@ static void irc_run(const gchar *command)
 	} else if (g_ascii_strncasecmp(command, "np", 2) == 0) {
 		mpd_announce_song();
 	} else if (g_ascii_strncasecmp(command, "pause", 5) == 0) {
-		/* TODO */
+		mpd_pause();
 	} else if (g_ascii_strncasecmp(command, "play", 4) == 0) {
-		/* TODO */
+		mpd_play();
 	} else if (g_ascii_strncasecmp(command, "prev", 4) == 0) {
-		/* TODO */
+		mpd_prev();
 	} else if (g_ascii_strncasecmp(command, "random", 6) == 0) {
-		/* TODO */
+		mpd_random();
 	} else if (g_ascii_strncasecmp(command, "repeat", 6) == 0) {
-		/* TODO */
+		mpd_repeat();
 	} else if (g_ascii_strncasecmp(command, "status", 6) == 0) {
 		mpd_say_status();
 	} else if (g_ascii_strncasecmp(command, "stop", 4) == 0) {
-		/* TODO */
+		mpd_stop();
 	} else if (g_ascii_strncasecmp(command, "version", 7) == 0) {
 		irc_say("This is " PACKAGE_STRING);
 	}

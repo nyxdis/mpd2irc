@@ -156,7 +156,7 @@ void mpd_announce_song(void)
 	irc_say("Now playing: %s - %s (%s)", artist, song, album);
 }
 
-/* TODO: avoid redundancy */
+/* TODO: remove redundancy */
 void mpd_next(void)
 {
 	if (!mpd.conn) {
@@ -246,4 +246,104 @@ static void mpd_report_error(void)
 		mpd_disconnect();
 		mpd_schedule_reconnect();
 	}
+}
+
+void mpd_play(void)
+{
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
+
+	mpd_run_noidle(mpd.conn);
+	mpd_run_play(mpd.conn);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
+}
+
+void mpd_pause(void)
+{
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
+
+	mpd_run_noidle(mpd.conn);
+	mpd_run_toggle_pause(mpd.conn);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
+}
+
+void mpd_prev(void)
+{
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
+
+	mpd_run_noidle(mpd.conn);
+	mpd_run_previous(mpd.conn);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
+}
+
+void mpd_repeat(void)
+{
+	gboolean mode = !mpd_status_get_repeat(mpd.status);
+
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
+
+	mpd_run_noidle(mpd.conn);
+	mpd_run_repeat(mpd.conn, mode);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
+}
+
+void mpd_random(void)
+{
+	gboolean mode = !mpd_status_get_random(mpd.status);
+
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
+
+	mpd_run_noidle(mpd.conn);
+	mpd_run_random(mpd.conn, mode);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
+}
+
+void mpd_stop(void)
+{
+	if (!mpd.conn) {
+		irc_say("Not connected to MPD");
+		return;
+	}
+
+	mpd_run_noidle(mpd.conn);
+	mpd_run_stop(mpd.conn);
+	if (!mpd_response_finish(mpd.conn)) {
+		mpd_report_error();
+		return;
+	}
+	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 }
