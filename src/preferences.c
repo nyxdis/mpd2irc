@@ -80,13 +80,15 @@ void parse_args(gint argc, gchar *argv[])
 {
 	GError *error = NULL;
 	gchar *config;
-	gboolean version = FALSE;
+	gboolean version = FALSE, foreground = FALSE;
 	GOptionContext *context;
 	GOptionEntry entries[] = {
 		{ "config", 'c', 0, G_OPTION_ARG_FILENAME, &config,
 			"filename of the config file", "path" },
 		{ "version", 'v', 0, G_OPTION_ARG_NONE, &version,
 			"print the program version", NULL },
+		{ "foreground", 'f', 0, G_OPTION_ARG_NONE, &foreground,
+			"don't fork to background", NULL },
 		{ NULL, 0, 0, 0, NULL, NULL, NULL }
 	};
 	context = g_option_context_new("- the interface between IRC and MPD");
@@ -100,6 +102,8 @@ void parse_args(gint argc, gchar *argv[])
 
 	if (version)
 		print_version();
+
+	prefs.foreground = foreground;
 }
 
 static void print_version(void)

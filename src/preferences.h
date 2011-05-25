@@ -33,6 +33,7 @@ struct {
 
 	/* other */
 	gboolean announce;
+	gboolean foreground;
 } prefs;
 
 void parse_config(void);

@@ -6,6 +6,7 @@
  */
 
 
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <glib.h>
@@ -20,6 +21,7 @@ static void m2i_open_signal_pipe(void);
 static gboolean m2i_signal_parse(GIOChannel *source, GIOCondition condition,
 		gpointer data);
 static void m2i_cleanup(void);
+static void m2i_fork(void);
 
 static gint signal_pipe[2] = { -1, -1 };
 static guint signal_source;
@@ -37,6 +39,9 @@ int main(int argc, char *argv[])
 
 	/* parse cli */
 	parse_args(argc, argv);
+
+	if (!prefs.foreground)
+		m2i_fork();
 
 	/* set up sighandler */
 	m2i_open_signal_pipe();
@@ -108,4 +113,15 @@ static gboolean m2i_signal_parse(GIOChannel *source,
 		g_main_loop_quit(loop);
 	}
 	return TRUE;
+}
+
+static void m2i_fork(void)
+{
+	pid_t pid = fork();
+
+	if (pid < 0) {
+		g_critical("Failed to fork process.");
+	} else if (pid > 0) { /* The parent */
+		exit(EXIT_SUCCESS);
+	}
 }
