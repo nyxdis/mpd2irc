@@ -300,7 +300,7 @@ void mpd_prev(void)
 
 void mpd_repeat(void)
 {
-	gboolean mode = !mpd_status_get_repeat(mpd.status);
+	const gboolean mode = !mpd_status_get_repeat(mpd.status);
 
 	if (!mpd.conn) {
 		irc_say("Not connected to MPD");
@@ -313,12 +313,13 @@ void mpd_repeat(void)
 		mpd_report_error();
 		return;
 	}
+	irc_say("Repeat %sabled", (mode ? "en" : "dis"));
 	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 }
 
 void mpd_random(void)
 {
-	gboolean mode = !mpd_status_get_random(mpd.status);
+	const gboolean mode = !mpd_status_get_random(mpd.status);
 
 	if (!mpd.conn) {
 		irc_say("Not connected to MPD");
@@ -331,6 +332,7 @@ void mpd_random(void)
 		mpd_report_error();
 		return;
 	}
+	irc_say("Random %sabled", (mode ? "en" : "dis"));
 	mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 }
 
