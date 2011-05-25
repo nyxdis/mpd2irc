@@ -60,6 +60,7 @@ gboolean mpd_connect(void)
 		}
 
 		g_message("Connected to MPD");
+		irc_say("Connected to MPD");
 
 		mpd_send_idle_mask(mpd.conn, MPD_IDLE_PLAYER);
 
@@ -81,8 +82,6 @@ static gboolean mpd_parse(G_GNUC_UNUSED GIOChannel *channel,
 
 	if (!mpd_response_finish(mpd.conn)) {
 		mpd_report_error();
-		mpd_disconnect();
-		mpd_schedule_reconnect();
 		return FALSE;
 	}
 
@@ -97,6 +96,7 @@ static void mpd_disconnect(void)
 	if (mpd.conn)
 		mpd_connection_free(mpd.conn);
 	mpd.conn = NULL;
+	irc_say("Disconnected from MPD");
 }
 
 void mpd_schedule_reconnect(void)
