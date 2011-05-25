@@ -221,6 +221,8 @@ void irc_cleanup(void)
 {
 	if (connection)
 		g_object_unref(connection);
+	istream = NULL;
+	ostream = NULL;
 	g_source_unref(callback_source);
 }
 
