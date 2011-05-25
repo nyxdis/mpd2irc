@@ -44,6 +44,8 @@ gboolean mpd_connect(void)
 		GIOChannel *channel;
 
 		mpd_command_list_begin(mpd.conn, TRUE);
+		if (prefs.mpd_password)
+			mpd_send_password(mpd.conn, prefs.mpd_password);
 		mpd_send_status(mpd.conn);
 		mpd_send_current_song(mpd.conn);
 		mpd_command_list_end(mpd.conn);
